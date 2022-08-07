@@ -224,7 +224,7 @@ impl ScreenHandler {
             }
 
             // Check if terminal is large enough
-            if self.terminal_size.width < 50 || self.terminal_size.height < 12 {
+            if self.terminal_size.width < 50 || self.terminal_size.height < 15 {
                 let dimension_notification = Paragraph::new("Terminal dimensions must be larger!")
                     .block(Block::default())
                     .alignment(Alignment::Center);

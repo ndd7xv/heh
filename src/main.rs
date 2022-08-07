@@ -35,7 +35,7 @@ Terminal UI Commands:
 Left-clicking on a label will copy the contents to the clipboard.
 Left-clicking on the ASCII or hex table will focus it.
 
-CNTRL- and CNTRL= will change the size of the components.";
+Zooming in and out will change the size of the components.";
 
 fn main() -> Result<(), Box<dyn Error>> {
     let matches = command!()
