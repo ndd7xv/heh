@@ -1,0 +1,26 @@
+[package]
+name = "heh"
+version = "0.1.0"
+edition = "2021"
+description = "A cross-platform terminal UI used for modifying file data in hex or ASCII."
+readme = "README.md"
+repository = "https://github.com/ndd7xv/heh"
+license = "MIT"
+categories = ["command-line-utilities", "text-editors"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tui = "0.18"
+crossterm = "0.23"
+clap = { version = "3.2", features = ["cargo"] }
+arboard = { version = "2.1", default-features = false }
+
+[profile.dev]
+opt-level = 1 # Default would excessively lag
+
+# cargo +nightly build -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target x86_64-unknown-linux-gnu --release
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"
