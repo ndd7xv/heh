@@ -142,19 +142,19 @@ impl ScreenHandler {
     }
     fn generate_text(
         contents: &[u8],
+        start_address: usize,
         offset: usize,
-        cursor: usize,
         bytes_per_line: usize,
         lines_per_screen: usize,
     ) -> (Text<'_>, Text<'_>, Text<'_>) {
-        let offset_text = (0..lines_per_screen)
-            .map(|i| format!("{:08X?}", (offset + i * bytes_per_line)))
+        let address_text = (0..lines_per_screen)
+            .map(|i| format!("{:08X?}", (start_address + i * bytes_per_line)))
             .fold(String::new(), |mut a, b| {
                 a.push_str(&b);
                 a.push('\n');
                 a
             });
-        let mut hex_text = contents[offset..]
+        let mut hex_text = contents[start_address..]
             .chunks(bytes_per_line)
             .take(lines_per_screen)
             .map(|chunk| {
@@ -172,7 +172,7 @@ impl ScreenHandler {
             })
             .collect::<Vec<Spans>>();
 
-        let mut ascii_text = contents[offset..]
+        let mut ascii_text = contents[start_address..]
             .chunks(bytes_per_line)
             .take(lines_per_screen)
             .map(|chunk| {
@@ -187,30 +187,30 @@ impl ScreenHandler {
             })
             .collect::<Vec<Spans>>();
 
-        let cursor_byte = contents[cursor];
-        let cursor_row = (cursor - offset) / bytes_per_line;
-        let cursor_col = (cursor - offset) % bytes_per_line;
-        if cursor_row < lines_per_screen {
-            hex_text[cursor_row].0[cursor_col] = Span::styled(
-                format!("{:02X?}", cursor_byte),
-                Style::default().fg(*get_color(&cursor_byte)).bg(COLOR_NULL),
+        let offset_byte = contents[offset];
+        let offset_row = (offset - start_address) / bytes_per_line;
+        let offset_col = (offset - start_address) % bytes_per_line;
+        if offset_row < lines_per_screen {
+            hex_text[offset_row].0[offset_col] = Span::styled(
+                format!("{:02X?}", offset_byte),
+                Style::default().fg(*get_color(&offset_byte)).bg(COLOR_NULL),
             );
-            hex_text[cursor_row]
+            hex_text[offset_row]
                 .0
-                .insert(cursor_col + 1, Span::styled(" ", Style::default()));
-            ascii_text[cursor_row].0[cursor_col] = Span::styled(
-                as_str(&cursor_byte),
-                Style::default().fg(*get_color(&cursor_byte)).bg(COLOR_NULL),
+                .insert(offset_col + 1, Span::styled(" ", Style::default()));
+            ascii_text[offset_row].0[offset_col] = Span::styled(
+                as_str(&offset_byte),
+                Style::default().fg(*get_color(&offset_byte)).bg(COLOR_NULL),
             );
         }
 
-        (offset_text.into(), hex_text.into(), ascii_text.into())
+        (address_text.into(), hex_text.into(), ascii_text.into())
     }
     pub(crate) fn render(
         &mut self,
         contents: &[u8],
+        start_address: usize,
         offset: usize,
-        cursor: usize,
         labels: &LabelHandler,
         focused_editor: &FocusedEditor,
     ) -> Result<(), Box<dyn Error>> {
@@ -240,18 +240,18 @@ impl ScreenHandler {
                 return;
             }
 
-            let (offset_text, hex_text, ascii_text) = Self::generate_text(
+            let (address_text, hex_text, ascii_text) = Self::generate_text(
                 contents,
+                start_address,
                 offset,
-                cursor,
                 self.comp_layouts.bytes_per_line,
                 self.comp_layouts.lines_per_screen,
             );
 
             // Render Line Numbers
             f.render_widget(
-                Paragraph::new(offset_text)
-                    .block(Block::default().borders(Borders::ALL).title("Offset")),
+                Paragraph::new(address_text)
+                    .block(Block::default().borders(Borders::ALL).title("Address")),
                 self.comp_layouts.line_numbers,
             );
 

@@ -33,8 +33,8 @@ pub(crate) enum Nibble {
 pub(crate) struct Application {
     file: File,
     contents: Vec<u8>,
+    start_address: usize,
     offset: usize,
-    cursor: usize,
     display: ScreenHandler,
     labels: LabelHandler,
     last_click: ClickedComponent,
@@ -56,8 +56,8 @@ impl Application {
         Ok(Application {
             file,
             contents,
+            start_address: 0,
             offset: 0,
-            cursor: 0,
             display: ScreenHandler::new()?,
             labels,
             last_click: Unclickable,
@@ -80,8 +80,8 @@ impl Application {
     fn render_display(&mut self) -> Result<(), Box<dyn Error>> {
         self.display.render(
             &self.contents,
+            self.start_address,
             self.offset,
-            self.cursor,
             &self.labels,
             &self.focused_editor,
         )?;
@@ -102,57 +102,57 @@ impl Application {
                 } else if key.code == KeyCode::Char('=') {
                     self.labels
                         .update_stream_length(cmp::min(self.labels.get_stream_length() + 1, 64));
-                    self.labels.update_streams(&self.contents[self.cursor..]);
+                    self.labels.update_streams(&self.contents[self.offset..]);
                 } else if key.code == KeyCode::Char('-') {
                     self.labels.update_stream_length(cmp::max(
                         self.labels.get_stream_length().saturating_sub(1),
                         0,
                     ));
-                    self.labels.update_streams(&self.contents[self.cursor..]);
+                    self.labels.update_streams(&self.contents[self.offset..]);
                 }
                 // Navigation controls
                 else if key.code == KeyCode::Right {
-                    self.cursor = cmp::min(self.cursor.saturating_add(1), self.contents.len() - 1);
-                    self.cursor_change_epilogue();
+                    self.offset = cmp::min(self.offset.saturating_add(1), self.contents.len() - 1);
+                    self.offset_change_epilogue();
                 } else if key.code == KeyCode::Left {
-                    self.cursor = self.cursor.saturating_sub(1);
-                    self.cursor_change_epilogue();
+                    self.offset = self.offset.saturating_sub(1);
+                    self.offset_change_epilogue();
                 } else if key.code == KeyCode::Up {
-                    self.cursor = self
-                        .cursor
+                    self.offset = self
+                        .offset
                         .saturating_sub(self.display.comp_layouts.bytes_per_line);
-                    self.cursor_change_epilogue();
+                    self.offset_change_epilogue();
                 } else if key.code == KeyCode::Down {
-                    self.cursor = cmp::min(
-                        self.cursor
+                    self.offset = cmp::min(
+                        self.offset
                             .saturating_add(self.display.comp_layouts.bytes_per_line),
                         self.contents.len() - 1,
                     );
-                    self.cursor_change_epilogue();
+                    self.offset_change_epilogue();
                 }
                 // Input Controls
                 else if key.code == KeyCode::Backspace {
-                    if self.cursor > 0 {
-                        self.contents.remove(self.cursor - 1);
-                        self.cursor = self.cursor.saturating_sub(1);
-                        self.cursor_change_epilogue();
+                    if self.offset > 0 {
+                        self.contents.remove(self.offset - 1);
+                        self.offset = self.offset.saturating_sub(1);
+                        self.offset_change_epilogue();
                     }
                 } else if key.code == KeyCode::Delete {
                     if self.contents.len() > 1 {
-                        self.contents.remove(self.cursor);
-                        self.cursor = self.cursor.saturating_sub(1);
-                        self.cursor_change_epilogue();
+                        self.contents.remove(self.offset);
+                        self.offset = self.offset.saturating_sub(1);
+                        self.offset_change_epilogue();
                     }
                 } else if key.modifiers | KeyModifiers::SHIFT == KeyModifiers::SHIFT {
                     match self.focused_editor {
                         FocusedEditor::Ascii => {
                             if let KeyCode::Char(c) = key.code {
-                                self.contents[self.cursor] = c as u8;
-                                self.cursor = cmp::min(
-                                    self.cursor.saturating_add(1),
+                                self.contents[self.offset] = c as u8;
+                                self.offset = cmp::min(
+                                    self.offset.saturating_add(1),
                                     self.contents.len() - 1,
                                 );
-                                self.cursor_change_epilogue();
+                                self.offset_change_epilogue();
                             }
                         }
                         FocusedEditor::Hex => {
@@ -164,30 +164,30 @@ impl Application {
                                         // Change the first character of the selected byte
                                         let mut src = c.to_string();
                                         src.push(
-                                            format!("{:02X}", self.contents[self.cursor])
+                                            format!("{:02X}", self.contents[self.offset])
                                                 .chars()
                                                 .last()
                                                 .unwrap(),
                                         );
                                         let changed = u8::from_str_radix(src.as_str(), 16).unwrap();
-                                        self.contents[self.cursor] = changed;
+                                        self.contents[self.offset] = changed;
                                         // Move to next nibble
                                         self.nibble = Nibble::End;
                                     } else {
-                                        let mut src = format!("{:02X}", self.contents[self.cursor])
+                                        let mut src = format!("{:02X}", self.contents[self.offset])
                                             .chars()
                                             .take(1)
                                             .collect::<String>();
                                         src.push(c);
                                         let changed = u8::from_str_radix(src.as_str(), 16).unwrap();
-                                        self.contents[self.cursor] = changed;
+                                        self.contents[self.offset] = changed;
 
                                         // Move to the next byte
-                                        self.cursor = cmp::min(
-                                            self.cursor.saturating_add(1),
+                                        self.offset = cmp::min(
+                                            self.offset.saturating_add(1),
                                             self.contents.len() - 1,
                                         );
-                                        self.cursor_change_epilogue();
+                                        self.offset_change_epilogue();
                                     }
                                 } else {
                                     self.labels.notification = format!("Invalid Hex: {c}");
@@ -236,31 +236,31 @@ impl Application {
         }
         Ok(true)
     }
-    // Puts the cursor back into the display
+    // Puts the offset back into the display
     fn adjust_offset(&mut self) {
-        let line_adjustment = ((self.cursor as f32 - self.offset as f32)
+        let line_adjustment = ((self.offset as f32 - self.start_address as f32)
             / self.display.comp_layouts.bytes_per_line as f32)
             .floor()
             .abs() as usize;
         let bytes_per_screen =
             self.display.comp_layouts.bytes_per_line * self.display.comp_layouts.lines_per_screen;
-        if self.cursor < self.offset {
-            self.offset = self
-                .offset
+        if self.offset < self.start_address {
+            self.start_address = self
+                .start_address
                 .saturating_sub(self.display.comp_layouts.bytes_per_line * line_adjustment);
-        } else if self.cursor >= self.offset + (bytes_per_screen)
-            && self.offset + self.display.comp_layouts.bytes_per_line < self.contents.len()
+        } else if self.offset >= self.start_address + (bytes_per_screen)
+            && self.start_address + self.display.comp_layouts.bytes_per_line < self.contents.len()
         {
-            self.offset = self.offset.saturating_add(
+            self.start_address = self.start_address.saturating_add(
                 self.display.comp_layouts.bytes_per_line
                     * (line_adjustment + 1 - self.display.comp_layouts.lines_per_screen),
             );
         }
-        self.labels.offset = format!("{:#X}", self.cursor);
+        self.labels.offset = format!("{:#X}", self.offset);
     }
-    fn cursor_change_epilogue(&mut self) {
+    fn offset_change_epilogue(&mut self) {
         self.nibble = Nibble::Beginning;
-        self.labels.update_all(&self.contents[self.cursor..]);
+        self.labels.update_all(&self.contents[self.offset..]);
         self.adjust_offset();
     }
 }

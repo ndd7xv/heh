@@ -1,6 +1,6 @@
 [package]
 name = "heh"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "A cross-platform terminal UI used for modifying file data in hex or ASCII."
 readme = "README.md"
