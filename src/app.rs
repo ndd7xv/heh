@@ -38,7 +38,7 @@ pub(crate) struct Application {
     display: ScreenHandler,
     labels: LabelHandler,
     last_click: ClickedComponent,
-    clipboard: Clipboard,
+    clipboard: Option<Clipboard>,
     focused_editor: FocusedEditor,
     nibble: Nibble,
 }
@@ -52,7 +52,11 @@ impl Application {
             eprintln!("heh does not support editing empty files");
             process::exit(1);
         }
-        let labels = LabelHandler::new(&contents);
+        let mut labels = LabelHandler::new(&contents);
+        let clipboard = Clipboard::new().ok();
+        if clipboard.is_none() {
+            labels.notification = String::from("Can't find clipboard!");
+        }
         Ok(Application {
             file,
             contents,
@@ -61,7 +65,7 @@ impl Application {
             display: ScreenHandler::new()?,
             labels,
             last_click: Unclickable,
-            clipboard: Clipboard::new().unwrap(),
+            clipboard,
             focused_editor: FocusedEditor::Hex,
             nibble: Nibble::Beginning,
         })
@@ -221,10 +225,15 @@ impl Application {
                         Label(i) => {
                             if self.last_click == component {
                                 // Put string into clipboard
-                                self.clipboard
-                                    .set_text(self.labels[LABEL_TITLES[i]].clone())
-                                    .unwrap();
-                                self.labels.notification = format!("{} copied!", LABEL_TITLES[i]);
+                                if let Some(clipboard) = self.clipboard.as_mut() {
+                                    clipboard
+                                        .set_text(self.labels[LABEL_TITLES[i]].clone())
+                                        .unwrap();
+                                    self.labels.notification =
+                                        format!("{} copied!", LABEL_TITLES[i]);
+                                } else {
+                                    self.labels.notification = String::from("Can't find clipboard!");
+                                }
                             }
                         }
                         Unclickable => {}
