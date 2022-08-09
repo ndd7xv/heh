@@ -1,6 +1,5 @@
 use std::error::Error;
 use std::fs::OpenOptions;
-use std::process;
 
 use app::Application;
 
@@ -26,6 +25,8 @@ different in heh; they interpret the stream as if 0s were filled
 to the end of the byte (i.e. stream length 9 on FF FF would
 produce octal 377 200 and hexadecimal FF 80).
 
+Like GHex, you cannot create files with heh, only modify them.
+
 Terminal UI Commands:
     =                   Increase the stream length by 1
     -                   Decrease the stream length by 1
@@ -47,11 +48,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let file = OpenOptions::new()
         .read(true)
         .write(true)
-        .open(matches.get_one::<String>("FILE").unwrap())
-        .unwrap_or_else(|err| {
-            eprintln!("An error occured opening the file: {err:?}");
-            process::exit(1)
-        });
+        .open(matches.get_one::<String>("FILE").unwrap())?;
 
     let mut app = Application::new(file)?;
     app.run()?;
