@@ -28,8 +28,8 @@ produce octal 377 200 and hexadecimal FF 80).
 Like GHex, you cannot create files with heh, only modify them.
 
 Terminal UI Commands:
-    =                   Increase the stream length by 1
-    -                   Decrease the stream length by 1
+    ALT=                Increase the stream length by 1
+    ALT-                Decrease the stream length by 1
     CNTRLs              Save
     CNTRLq              Quit
 

@@ -95,110 +95,145 @@ impl Application {
         let event = event::read()?;
         match event {
             Event::Key(key) => {
-                // Meta controls
-                if key.code == KeyCode::Char('q') && key.modifiers == KeyModifiers::CONTROL {
-                    return Ok(false);
-                } else if key.code == KeyCode::Char('s') && key.modifiers == KeyModifiers::CONTROL {
-                    self.file.seek(SeekFrom::Start(0))?;
-                    self.file.write_all(&self.contents)?;
-                    self.file.set_len(self.contents.len() as u64)?;
-                    self.labels.notification = String::from("Saved!");
-                } else if key.code == KeyCode::Char('=') {
-                    self.labels
-                        .update_stream_length(cmp::min(self.labels.get_stream_length() + 1, 64));
-                    self.labels.update_streams(&self.contents[self.offset..]);
-                } else if key.code == KeyCode::Char('-') {
-                    self.labels.update_stream_length(cmp::max(
-                        self.labels.get_stream_length().saturating_sub(1),
-                        0,
-                    ));
-                    self.labels.update_streams(&self.contents[self.offset..]);
-                }
-                // Navigation controls
-                else if key.code == KeyCode::Right {
-                    self.offset = cmp::min(self.offset.saturating_add(1), self.contents.len() - 1);
-                    self.offset_change_epilogue();
-                } else if key.code == KeyCode::Left {
-                    self.offset = self.offset.saturating_sub(1);
-                    self.offset_change_epilogue();
-                } else if key.code == KeyCode::Up {
-                    self.offset = self
-                        .offset
-                        .saturating_sub(self.display.comp_layouts.bytes_per_line);
-                    self.offset_change_epilogue();
-                } else if key.code == KeyCode::Down {
-                    self.offset = cmp::min(
-                        self.offset
-                            .saturating_add(self.display.comp_layouts.bytes_per_line),
-                        self.contents.len() - 1,
-                    );
-                    self.offset_change_epilogue();
-                }
-                // Input Controls
-                else if key.code == KeyCode::Backspace {
-                    if self.offset > 0 {
-                        self.contents.remove(self.offset - 1);
+                match key.code {
+                    // Directional inputs that move the selected offset
+                    KeyCode::Left => {
                         self.offset = self.offset.saturating_sub(1);
                         self.offset_change_epilogue();
                     }
-                } else if key.code == KeyCode::Delete {
-                    if self.contents.len() > 1 {
-                        self.contents.remove(self.offset);
-                        self.offset = self.offset.saturating_sub(1);
+                    KeyCode::Right => {
+                        self.offset =
+                            cmp::min(self.offset.saturating_add(1), self.contents.len() - 1);
                         self.offset_change_epilogue();
                     }
-                } else if key.modifiers | KeyModifiers::SHIFT == KeyModifiers::SHIFT {
-                    match self.focused_editor {
-                        FocusedEditor::Ascii => {
-                            if let KeyCode::Char(c) = key.code {
-                                self.contents[self.offset] = c as u8;
-                                self.offset = cmp::min(
-                                    self.offset.saturating_add(1),
-                                    self.contents.len() - 1,
-                                );
-                                self.offset_change_epilogue();
-                            }
+                    KeyCode::Up => {
+                        self.offset = self
+                            .offset
+                            .saturating_sub(self.display.comp_layouts.bytes_per_line);
+                        self.offset_change_epilogue();
+                    }
+                    KeyCode::Down => {
+                        self.offset = cmp::min(
+                            self.offset
+                                .saturating_add(self.display.comp_layouts.bytes_per_line),
+                            self.contents.len() - 1,
+                        );
+                        self.offset_change_epilogue();
+                    }
+
+                    // Input that removes bytes
+                    KeyCode::Backspace => {
+                        if self.offset > 0 {
+                            self.contents.remove(self.offset - 1);
+                            self.offset = self.offset.saturating_sub(1);
+                            self.offset_change_epilogue();
                         }
-                        FocusedEditor::Hex => {
-                            if let KeyCode::Char(c) = key.code {
-                                if c.is_ascii_hexdigit() {
-                                    // This can probably be optimized...
+                    }
+                    KeyCode::Delete => {
+                        if self.contents.len() > 1 {
+                            self.contents.remove(self.offset);
+                            self.offset = self.offset.saturating_sub(1);
+                            self.offset_change_epilogue();
+                        }
+                    }
 
-                                    if self.nibble == Nibble::Beginning {
-                                        // Change the first character of the selected byte
-                                        let mut src = c.to_string();
-                                        src.push(
-                                            format!("{:02X}", self.contents[self.offset])
-                                                .chars()
-                                                .last()
-                                                .unwrap(),
-                                        );
-                                        let changed = u8::from_str_radix(src.as_str(), 16).unwrap();
-                                        self.contents[self.offset] = changed;
-                                        // Move to next nibble
-                                        self.nibble = Nibble::End;
+                    // Character Input and Shortcuts
+                    KeyCode::Char(char) => {
+                        // A flag to indicate if a user wasn't trying to modify a byte
+                        // i.e., CNTRLs shouldn't save and then modify the file
+                        let mut special_command = false;
+                        match char {
+                            'q' => {
+                                if key.modifiers == KeyModifiers::CONTROL {
+                                    return Ok(false);
+                                }
+                            }
+                            's' => {
+                                if key.modifiers == KeyModifiers::CONTROL {
+                                    special_command = true;
+                                    self.file.seek(SeekFrom::Start(0))?;
+                                    self.file.write_all(&self.contents)?;
+                                    self.file.set_len(self.contents.len() as u64)?;
+                                    self.labels.notification = String::from("Saved!");
+                                }
+                            }
+                            '=' => {
+                                if key.modifiers == KeyModifiers::ALT {
+                                    special_command = true;
+                                    self.labels.update_stream_length(cmp::min(
+                                        self.labels.get_stream_length() + 1,
+                                        64,
+                                    ));
+                                    self.labels.update_streams(&self.contents[self.offset..]);
+                                }
+                            }
+                            '-' => {
+                                if key.modifiers == KeyModifiers::ALT {
+                                    special_command = true;
+                                    self.labels.update_stream_length(cmp::max(
+                                        self.labels.get_stream_length().saturating_sub(1),
+                                        0,
+                                    ));
+                                    self.labels.update_streams(&self.contents[self.offset..]);
+                                }
+                            }
+                            _ => {}
+                        }
+                        if !special_command
+                            && key.modifiers | KeyModifiers::SHIFT == KeyModifiers::SHIFT
+                        {
+                            match self.focused_editor {
+                                FocusedEditor::Ascii => {
+                                    self.contents[self.offset] = char as u8;
+                                    self.offset = cmp::min(
+                                        self.offset.saturating_add(1),
+                                        self.contents.len() - 1,
+                                    );
+                                    self.offset_change_epilogue();
+                                }
+                                FocusedEditor::Hex => {
+                                    if char.is_ascii_hexdigit() {
+                                        // This can probably be optimized...
+                                        if self.nibble == Nibble::Beginning {
+                                            // Change the first character of the selected byte
+                                            let mut src = char.to_string();
+                                            src.push(
+                                                format!("{:02X}", self.contents[self.offset])
+                                                    .chars()
+                                                    .last()
+                                                    .unwrap(),
+                                            );
+                                            let changed =
+                                                u8::from_str_radix(src.as_str(), 16).unwrap();
+                                            self.contents[self.offset] = changed;
+                                            // Move to next nibble
+                                            self.nibble = Nibble::End;
+                                        } else {
+                                            let mut src =
+                                                format!("{:02X}", self.contents[self.offset])
+                                                    .chars()
+                                                    .take(1)
+                                                    .collect::<String>();
+                                            src.push(char);
+                                            let changed =
+                                                u8::from_str_radix(src.as_str(), 16).unwrap();
+                                            self.contents[self.offset] = changed;
+
+                                            // Move to the next byte
+                                            self.offset = cmp::min(
+                                                self.offset.saturating_add(1),
+                                                self.contents.len() - 1,
+                                            );
+                                            self.offset_change_epilogue();
+                                        }
                                     } else {
-                                        let mut src = format!("{:02X}", self.contents[self.offset])
-                                            .chars()
-                                            .take(1)
-                                            .collect::<String>();
-                                        src.push(c);
-                                        let changed = u8::from_str_radix(src.as_str(), 16).unwrap();
-                                        self.contents[self.offset] = changed;
-
-                                        // Move to the next byte
-                                        self.offset = cmp::min(
-                                            self.offset.saturating_add(1),
-                                            self.contents.len() - 1,
-                                        );
-                                        self.offset_change_epilogue();
+                                        self.labels.notification = format!("Invalid Hex: {char}");
                                     }
-                                } else {
-                                    self.labels.notification = format!("Invalid Hex: {c}");
                                 }
                             }
                         }
                     }
+                    _ => {}
                 }
             }
             Event::Mouse(mouse) => {
@@ -232,7 +267,8 @@ impl Application {
                                     self.labels.notification =
                                         format!("{} copied!", LABEL_TITLES[i]);
                                 } else {
-                                    self.labels.notification = String::from("Can't find clipboard!");
+                                    self.labels.notification =
+                                        String::from("Can't find clipboard!");
                                 }
                             }
                         }

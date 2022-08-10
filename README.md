@@ -18,8 +18,8 @@ From `heh --help`:
 ```
 ...
 Terminal UI Commands:
-    =                   Increase the stream length by 1
-    -                   Decrease the stream length by 1
+    ALT=                Increase the stream length by 1
+    ALT-                Decrease the stream length by 1
     CNTRLs              Save
     CNTRLq              Quit
 
