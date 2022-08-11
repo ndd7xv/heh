@@ -19,7 +19,7 @@ use tui::{
 };
 
 use crate::{
-    app::FocusedEditor,
+    app::{FocusedEditor, Nibble},
     label::{LabelHandler, LABEL_TITLES},
 };
 
@@ -140,13 +140,14 @@ impl ScreenHandler {
             labels,
         }
     }
-    fn generate_text(
-        contents: &[u8],
+    fn generate_text<'a>(
+        contents: &'a [u8],
         start_address: usize,
         offset: usize,
         bytes_per_line: usize,
         lines_per_screen: usize,
-    ) -> (Text<'_>, Text<'_>, Text<'_>) {
+        nibble: &Nibble,
+    ) -> (Text<'a>, Text<'a>, Text<'a>) {
         let address_text = (0..lines_per_screen)
             .map(|i| format!("{:08X?}", (start_address + i * bytes_per_line)))
             .fold(String::new(), |mut a, b| {
@@ -191,13 +192,33 @@ impl ScreenHandler {
         let offset_row = (offset - start_address) / bytes_per_line;
         let offset_col = (offset - start_address) % bytes_per_line;
         if offset_row < lines_per_screen {
+            // Highlight the selected nibble in the Hex table
+            let byte = format!("{:02X?}", offset_byte);
+            let mut byte = byte.chars();
             hex_text[offset_row].0[offset_col] = Span::styled(
-                format!("{:02X?}", offset_byte),
-                Style::default().fg(*get_color(&offset_byte)).bg(COLOR_NULL),
+                byte.next().unwrap().to_string(),
+                if nibble == &Nibble::Beginning {
+                    Style::default().fg(*get_color(&offset_byte)).bg(COLOR_NULL)
+                } else {
+                    Style::default().fg(*get_color(&offset_byte))
+                },
+            );
+            hex_text[offset_row].0.insert(
+                offset_col + 1,
+                Span::styled(
+                    byte.next().unwrap().to_string(),
+                    if nibble == &Nibble::End {
+                        Style::default().fg(*get_color(&offset_byte)).bg(COLOR_NULL)
+                    } else {
+                        Style::default().fg(*get_color(&offset_byte))
+                    },
+                ),
             );
             hex_text[offset_row]
                 .0
-                .insert(offset_col + 1, Span::styled(" ", Style::default()));
+                .insert(offset_col + 2, Span::styled(" ", Style::default()));
+
+            // Highlight the selected nibble in the ASCII table
             ascii_text[offset_row].0[offset_col] = Span::styled(
                 as_str(&offset_byte),
                 Style::default().fg(*get_color(&offset_byte)).bg(COLOR_NULL),
@@ -213,6 +234,7 @@ impl ScreenHandler {
         offset: usize,
         labels: &LabelHandler,
         focused_editor: &FocusedEditor,
+        nibble: &Nibble,
     ) -> Result<(), Box<dyn Error>> {
         self.terminal.draw(|f| {
             // We check if we need to recompute the terminal size in the case that the saved off variable
@@ -246,6 +268,7 @@ impl ScreenHandler {
                 offset,
                 self.comp_layouts.bytes_per_line,
                 self.comp_layouts.lines_per_screen,
+                nibble,
             );
 
             // Render Line Numbers

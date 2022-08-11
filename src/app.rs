@@ -30,6 +30,14 @@ pub(crate) enum Nibble {
     End,
 }
 
+impl Nibble {
+    fn toggle(&mut self) {
+        match self {
+            Nibble::Beginning => *self = Nibble::End,
+            Nibble::End => *self = Nibble::Beginning,
+        }
+    }
+}
 pub(crate) struct Application {
     file: File,
     contents: Vec<u8>,
@@ -88,6 +96,7 @@ impl Application {
             self.offset,
             &self.labels,
             &self.focused_editor,
+            &self.nibble,
         )?;
         Ok(())
     }
@@ -98,27 +107,46 @@ impl Application {
                 match key.code {
                     // Directional inputs that move the selected offset
                     KeyCode::Left => {
-                        self.offset = self.offset.saturating_sub(1);
-                        self.offset_change_epilogue();
+                        if self.nibble == Nibble::Beginning
+                            || self.focused_editor == FocusedEditor::Ascii
+                        {
+                            self.offset = self.offset.saturating_sub(1);
+                            self.offset_change_epilogue();
+                        }
+                        if self.focused_editor == FocusedEditor::Hex {
+                            self.nibble.toggle();
+                        }
                     }
                     KeyCode::Right => {
-                        self.offset =
-                            cmp::min(self.offset.saturating_add(1), self.contents.len() - 1);
-                        self.offset_change_epilogue();
+                        if self.nibble == Nibble::End || self.focused_editor == FocusedEditor::Ascii
+                        {
+                            self.offset =
+                                cmp::min(self.offset.saturating_add(1), self.contents.len() - 1);
+                            self.offset_change_epilogue();
+                        }
+                        if self.focused_editor == FocusedEditor::Hex {
+                            self.nibble.toggle();
+                        }
                     }
                     KeyCode::Up => {
-                        self.offset = self
+                        if let Some(new_offset) = self
                             .offset
-                            .saturating_sub(self.display.comp_layouts.bytes_per_line);
-                        self.offset_change_epilogue();
+                            .checked_sub(self.display.comp_layouts.bytes_per_line)
+                        {
+                            self.offset = new_offset;
+                            self.offset_change_epilogue();
+                        }
                     }
                     KeyCode::Down => {
-                        self.offset = cmp::min(
-                            self.offset
-                                .saturating_add(self.display.comp_layouts.bytes_per_line),
-                            self.contents.len() - 1,
-                        );
-                        self.offset_change_epilogue();
+                        if let Some(new_offset) = self
+                            .offset
+                            .checked_add(self.display.comp_layouts.bytes_per_line)
+                        {
+                            if new_offset < self.contents.len() {
+                                self.offset = new_offset;
+                                self.offset_change_epilogue();
+                            }
+                        }
                     }
 
                     // Input that removes bytes
@@ -194,38 +222,39 @@ impl Application {
                                 FocusedEditor::Hex => {
                                     if char.is_ascii_hexdigit() {
                                         // This can probably be optimized...
-                                        if self.nibble == Nibble::Beginning {
-                                            // Change the first character of the selected byte
-                                            let mut src = char.to_string();
-                                            src.push(
-                                                format!("{:02X}", self.contents[self.offset])
-                                                    .chars()
-                                                    .last()
-                                                    .unwrap(),
-                                            );
-                                            let changed =
-                                                u8::from_str_radix(src.as_str(), 16).unwrap();
-                                            self.contents[self.offset] = changed;
-                                            // Move to next nibble
-                                            self.nibble = Nibble::End;
-                                        } else {
-                                            let mut src =
-                                                format!("{:02X}", self.contents[self.offset])
-                                                    .chars()
-                                                    .take(1)
-                                                    .collect::<String>();
-                                            src.push(char);
-                                            let changed =
-                                                u8::from_str_radix(src.as_str(), 16).unwrap();
-                                            self.contents[self.offset] = changed;
+                                        match self.nibble {
+                                            Nibble::Beginning => {
+                                                let mut src = char.to_string();
+                                                src.push(
+                                                    format!("{:02X}", self.contents[self.offset])
+                                                        .chars()
+                                                        .last()
+                                                        .unwrap(),
+                                                );
+                                                let changed =
+                                                    u8::from_str_radix(src.as_str(), 16).unwrap();
+                                                self.contents[self.offset] = changed;
+                                            }
+                                            Nibble::End => {
+                                                let mut src =
+                                                    format!("{:02X}", self.contents[self.offset])
+                                                        .chars()
+                                                        .take(1)
+                                                        .collect::<String>();
+                                                src.push(char);
+                                                let changed =
+                                                    u8::from_str_radix(src.as_str(), 16).unwrap();
+                                                self.contents[self.offset] = changed;
 
-                                            // Move to the next byte
-                                            self.offset = cmp::min(
-                                                self.offset.saturating_add(1),
-                                                self.contents.len() - 1,
-                                            );
-                                            self.offset_change_epilogue();
+                                                // Move to the next byte
+                                                self.offset = cmp::min(
+                                                    self.offset.saturating_add(1),
+                                                    self.contents.len() - 1,
+                                                );
+                                                self.offset_change_epilogue();
+                                            }
                                         }
+                                        self.nibble.toggle()
                                     } else {
                                         self.labels.notification = format!("Invalid Hex: {char}");
                                     }
@@ -245,7 +274,6 @@ impl Application {
                     match self.last_click {
                         HexTable => {
                             self.focused_editor = FocusedEditor::Hex;
-                            self.nibble = Nibble::Beginning;
                         }
                         AsciiTable => {
                             self.focused_editor = FocusedEditor::Ascii;
@@ -275,7 +303,6 @@ impl Application {
                         Unclickable => {}
                     }
                 }
-                //self.labels.notification = format!("{:?} at ({}, {})", mouse.kind, mouse.row, mouse.column);
             }
             _ => {}
         }
@@ -304,7 +331,6 @@ impl Application {
         self.labels.offset = format!("{:#X}", self.offset);
     }
     fn offset_change_epilogue(&mut self) {
-        self.nibble = Nibble::Beginning;
         self.labels.update_all(&self.contents[self.offset..]);
         self.adjust_offset();
     }
