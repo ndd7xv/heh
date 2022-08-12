@@ -148,13 +148,24 @@ impl ScreenHandler {
         lines_per_screen: usize,
         nibble: &Nibble,
     ) -> (Text<'a>, Text<'a>, Text<'a>) {
-        let address_text = (0..lines_per_screen)
+        // Generate address lines
+        let mut address_text = (0..lines_per_screen)
             .map(|i| format!("{:08X?}", (start_address + i * bytes_per_line)))
-            .fold(String::new(), |mut a, b| {
-                a.push_str(&b);
-                a.push('\n');
-                a
-            });
+            .map(|mut address| {
+                address.push('\n');
+                Spans::from(Span::raw(address))
+            })
+            .collect::<Vec<Spans>>();
+
+        let cursor_row = (offset - start_address) / bytes_per_line;
+
+        // Highlight the address row that the cursor is in for visibility
+        if cursor_row < lines_per_screen {
+            address_text[cursor_row].0[0].style =
+                Style::default().bg(Color::White).fg(Color::Black);
+        }
+
+        // Display hex - chunks the bytes into rows and formats them into hex
         let mut hex_text = contents[start_address..]
             .chunks(bytes_per_line)
             .take(lines_per_screen)
@@ -173,6 +184,7 @@ impl ScreenHandler {
             })
             .collect::<Vec<Spans>>();
 
+        // Display ASCII bytes
         let mut ascii_text = contents[start_address..]
             .chunks(bytes_per_line)
             .take(lines_per_screen)
@@ -188,40 +200,40 @@ impl ScreenHandler {
             })
             .collect::<Vec<Spans>>();
 
-        let offset_byte = contents[offset];
-        let offset_row = (offset - start_address) / bytes_per_line;
-        let offset_col = (offset - start_address) % bytes_per_line;
-        if offset_row < lines_per_screen {
+        // Style the selected byte that the cursor is on
+        let cursor_byte = contents[offset];
+        let cursor_col = (offset - start_address) % bytes_per_line;
+        if cursor_row < lines_per_screen {
             // Highlight the selected nibble in the Hex table
-            let byte = format!("{:02X?}", offset_byte);
+            let byte = format!("{:02X?}", cursor_byte);
             let mut byte = byte.chars();
-            hex_text[offset_row].0[offset_col] = Span::styled(
+            hex_text[cursor_row].0[cursor_col] = Span::styled(
                 byte.next().unwrap().to_string(),
                 if nibble == &Nibble::Beginning {
-                    Style::default().fg(*get_color(&offset_byte)).bg(COLOR_NULL)
+                    Style::default().fg(*get_color(&cursor_byte)).bg(COLOR_NULL)
                 } else {
-                    Style::default().fg(*get_color(&offset_byte))
+                    Style::default().fg(*get_color(&cursor_byte))
                 },
             );
-            hex_text[offset_row].0.insert(
-                offset_col + 1,
+            hex_text[cursor_row].0.insert(
+                cursor_col + 1,
                 Span::styled(
                     byte.next().unwrap().to_string(),
                     if nibble == &Nibble::End {
-                        Style::default().fg(*get_color(&offset_byte)).bg(COLOR_NULL)
+                        Style::default().fg(*get_color(&cursor_byte)).bg(COLOR_NULL)
                     } else {
-                        Style::default().fg(*get_color(&offset_byte))
+                        Style::default().fg(*get_color(&cursor_byte))
                     },
                 ),
             );
-            hex_text[offset_row]
+            hex_text[cursor_row]
                 .0
-                .insert(offset_col + 2, Span::styled(" ", Style::default()));
+                .insert(cursor_col + 2, Span::styled(" ", Style::default()));
 
-            // Highlight the selected nibble in the ASCII table
-            ascii_text[offset_row].0[offset_col] = Span::styled(
-                as_str(&offset_byte),
-                Style::default().fg(*get_color(&offset_byte)).bg(COLOR_NULL),
+            // Highlight the selected byte in the ASCII table
+            ascii_text[cursor_row].0[cursor_col] = Span::styled(
+                as_str(&cursor_byte),
+                Style::default().fg(*get_color(&cursor_byte)).bg(COLOR_NULL),
             );
         }
 
