@@ -1,4 +1,5 @@
 use std::{
+    cmp,
     error::Error,
     io::{self, Stdout},
 };
@@ -149,12 +150,11 @@ impl ScreenHandler {
         nibble: &Nibble,
     ) -> (Text<'a>, Text<'a>, Text<'a>) {
         // Generate address lines
-        let mut address_text = (0..lines_per_screen)
-            .map(|i| format!("{:08X?}", (start_address + i * bytes_per_line)))
-            .map(|mut address| {
-                address.push('\n');
-                Spans::from(Span::raw(address))
-            })
+        let mut address_text = (0..cmp::min(
+            lines_per_screen,
+            ((contents.len() - start_address) / bytes_per_line) + 1,
+        ))
+            .map(|i| Spans::from(format!("{:08X?}\n", (start_address + i * bytes_per_line))))
             .collect::<Vec<Spans>>();
 
         let cursor_row = (offset - start_address) / bytes_per_line;
