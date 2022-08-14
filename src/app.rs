@@ -51,6 +51,35 @@ pub(crate) struct Application {
     nibble: Nibble,
 }
 
+/// Represents an editor intent.
+enum EditorIntent {
+    MoveLeft,
+    MoveRight,
+    MoveUp,
+    MoveDown,
+}
+
+impl EditorIntent {
+    /// Maps a terminal event into an editor intent.
+    fn new(event: Event) -> Self {
+        match event {
+            Event::Key(key) => match key.code {
+                KeyCode::Left => EditorIntent::MoveLeft,
+                KeyCode::Right => EditorIntent::MoveRight,
+                KeyCode::Up => EditorIntent::MoveUp,
+                KeyCode::Down => EditorIntent::MoveDown,
+                _ => unimplemented!(),
+            },
+            Event::Mouse(mouse) => match mouse.kind {
+                MouseEventKind::ScrollUp => EditorIntent::MoveUp,
+                MouseEventKind::ScrollDown => EditorIntent::MoveDown,
+                _ => unimplemented!(),
+            },
+            _ => unimplemented!(),
+        }
+    }
+}
+
 impl Application {
     pub(crate) fn new(mut file: File) -> Result<Application, Box<dyn Error>> {
         let mut contents = Vec::new();
@@ -100,53 +129,58 @@ impl Application {
         )?;
         Ok(())
     }
+
+    fn move_cursor(&mut self, key: EditorIntent) {
+        match key {
+            EditorIntent::MoveLeft => {
+                if self.nibble == Nibble::Beginning || self.focused_editor == FocusedEditor::Ascii {
+                    self.offset = self.offset.saturating_sub(1);
+                    self.offset_change_epilogue();
+                }
+                if self.focused_editor == FocusedEditor::Hex {
+                    self.nibble.toggle();
+                }
+            }
+            EditorIntent::MoveRight => {
+                if self.nibble == Nibble::End || self.focused_editor == FocusedEditor::Ascii {
+                    self.offset = cmp::min(self.offset.saturating_add(1), self.contents.len() - 1);
+                    self.offset_change_epilogue();
+                }
+                if self.focused_editor == FocusedEditor::Hex {
+                    self.nibble.toggle();
+                }
+            }
+            EditorIntent::MoveUp => {
+                if let Some(new_offset) = self
+                    .offset
+                    .checked_sub(self.display.comp_layouts.bytes_per_line)
+                {
+                    self.offset = new_offset;
+                    self.offset_change_epilogue();
+                }
+            }
+            EditorIntent::MoveDown => {
+                if let Some(new_offset) = self
+                    .offset
+                    .checked_add(self.display.comp_layouts.bytes_per_line)
+                {
+                    if new_offset < self.contents.len() {
+                        self.offset = new_offset;
+                        self.offset_change_epilogue();
+                    }
+                }
+            }
+        }
+    }
+
     fn handle_input(&mut self) -> Result<bool, Box<dyn Error>> {
         let event = event::read()?;
         match event {
             Event::Key(key) => {
                 match key.code {
                     // Directional inputs that move the selected offset
-                    KeyCode::Left => {
-                        if self.nibble == Nibble::Beginning
-                            || self.focused_editor == FocusedEditor::Ascii
-                        {
-                            self.offset = self.offset.saturating_sub(1);
-                            self.offset_change_epilogue();
-                        }
-                        if self.focused_editor == FocusedEditor::Hex {
-                            self.nibble.toggle();
-                        }
-                    }
-                    KeyCode::Right => {
-                        if self.nibble == Nibble::End || self.focused_editor == FocusedEditor::Ascii
-                        {
-                            self.offset =
-                                cmp::min(self.offset.saturating_add(1), self.contents.len() - 1);
-                            self.offset_change_epilogue();
-                        }
-                        if self.focused_editor == FocusedEditor::Hex {
-                            self.nibble.toggle();
-                        }
-                    }
-                    KeyCode::Up => {
-                        if let Some(new_offset) = self
-                            .offset
-                            .checked_sub(self.display.comp_layouts.bytes_per_line)
-                        {
-                            self.offset = new_offset;
-                            self.offset_change_epilogue();
-                        }
-                    }
-                    KeyCode::Down => {
-                        if let Some(new_offset) = self
-                            .offset
-                            .checked_add(self.display.comp_layouts.bytes_per_line)
-                        {
-                            if new_offset < self.contents.len() {
-                                self.offset = new_offset;
-                                self.offset_change_epilogue();
-                            }
-                        }
+                    KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down => {
+                        self.move_cursor(EditorIntent::new(event));
                     }
 
                     // Input that removes bytes
@@ -269,39 +303,46 @@ impl Application {
                 let component = self
                     .display
                     .identify_clicked_component(mouse.row, mouse.column);
-                if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
-                    self.last_click = component;
-                    match self.last_click {
-                        HexTable => {
-                            self.focused_editor = FocusedEditor::Hex;
+                match mouse.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        self.last_click = component;
+                        match self.last_click {
+                            HexTable => {
+                                self.focused_editor = FocusedEditor::Hex;
+                            }
+                            AsciiTable => {
+                                self.focused_editor = FocusedEditor::Ascii;
+                            }
+                            Label(_) => {}
+                            Unclickable => {}
                         }
-                        AsciiTable => {
-                            self.focused_editor = FocusedEditor::Ascii;
-                        }
-                        Label(_) => {}
-                        Unclickable => {}
                     }
-                } else if mouse.kind == MouseEventKind::Up(MouseButton::Left) {
-                    match component {
-                        HexTable => {}
-                        AsciiTable => {}
-                        Label(i) => {
-                            if self.last_click == component {
-                                // Put string into clipboard
-                                if let Some(clipboard) = self.clipboard.as_mut() {
-                                    clipboard
-                                        .set_text(self.labels[LABEL_TITLES[i]].clone())
-                                        .unwrap();
-                                    self.labels.notification =
-                                        format!("{} copied!", LABEL_TITLES[i]);
-                                } else {
-                                    self.labels.notification =
-                                        String::from("Can't find clipboard!");
+                    MouseEventKind::Up(MouseButton::Left) => {
+                        match component {
+                            HexTable => {}
+                            AsciiTable => {}
+                            Label(i) => {
+                                if self.last_click == component {
+                                    // Put string into clipboard
+                                    if let Some(clipboard) = self.clipboard.as_mut() {
+                                        clipboard
+                                            .set_text(self.labels[LABEL_TITLES[i]].clone())
+                                            .unwrap();
+                                        self.labels.notification =
+                                            format!("{} copied!", LABEL_TITLES[i]);
+                                    } else {
+                                        self.labels.notification =
+                                            String::from("Can't find clipboard!");
+                                    }
                                 }
                             }
+                            Unclickable => {}
                         }
-                        Unclickable => {}
                     }
+                    MouseEventKind::ScrollUp | MouseEventKind::ScrollDown => {
+                        self.move_cursor(EditorIntent::new(event));
+                    }
+                    _ => {}
                 }
             }
             _ => {}
