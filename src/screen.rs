@@ -161,7 +161,7 @@ impl ScreenHandler {
 
         // Highlight the address row that the cursor is in for visibility
         if cursor_row >= start_row && cursor_row < start_row + lines_per_screen {
-            address_text[cursor_row].0[0].style =
+            address_text[cursor_row - start_row].0[0].style =
                 Style::default().bg(Color::White).fg(Color::Black);
         }
 
@@ -207,7 +207,7 @@ impl ScreenHandler {
             // Highlight the selected nibble in the Hex table
             let byte = format!("{:02X?}", cursor_byte);
             let mut byte = byte.chars();
-            hex_text[cursor_row].0[cursor_col] = Span::styled(
+            hex_text[cursor_row - start_row].0[cursor_col] = Span::styled(
                 byte.next().unwrap().to_string(),
                 if nibble == &Nibble::Beginning {
                     Style::default().fg(*get_color(&cursor_byte)).bg(COLOR_NULL)
@@ -215,7 +215,7 @@ impl ScreenHandler {
                     Style::default().fg(*get_color(&cursor_byte))
                 },
             );
-            hex_text[cursor_row].0.insert(
+            hex_text[cursor_row - start_row].0.insert(
                 cursor_col + 1,
                 Span::styled(
                     byte.next().unwrap().to_string(),
@@ -226,12 +226,12 @@ impl ScreenHandler {
                     },
                 ),
             );
-            hex_text[cursor_row]
+            hex_text[cursor_row - start_row]
                 .0
                 .insert(cursor_col + 2, Span::styled(" ", Style::default()));
 
             // Highlight the selected byte in the ASCII table
-            ascii_text[cursor_row].0[cursor_col] = Span::styled(
+            ascii_text[cursor_row - start_row].0[cursor_col] = Span::styled(
                 as_str(&cursor_byte),
                 Style::default().fg(*get_color(&cursor_byte)).bg(COLOR_NULL),
             );
