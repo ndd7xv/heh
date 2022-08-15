@@ -38,10 +38,16 @@ impl Nibble {
         }
     }
 }
+
+/// Application provides the user interaction interface and renders the terminal screen in response to user actions.
 pub(crate) struct Application {
+    /// The file under editting.
     file: File,
+    /// The file content.
     contents: Vec<u8>,
+    /// Offset of the first content byte that is visible on the screen.
     start_address: usize,
+    /// Offset of the content byte under cursor.
     offset: usize,
     display: ScreenHandler,
     labels: LabelHandler,
@@ -269,39 +275,62 @@ impl Application {
                 let component = self
                     .display
                     .identify_clicked_component(mouse.row, mouse.column);
-                if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
-                    self.last_click = component;
-                    match self.last_click {
-                        HexTable => {
-                            self.focused_editor = FocusedEditor::Hex;
+                match mouse.kind {
+                    MouseEventKind::Down(MouseButton::Left) => {
+                        self.last_click = component;
+                        match self.last_click {
+                            HexTable => {
+                                self.focused_editor = FocusedEditor::Hex;
+                            }
+                            AsciiTable => {
+                                self.focused_editor = FocusedEditor::Ascii;
+                            }
+                            Label(_) => {}
+                            Unclickable => {}
                         }
-                        AsciiTable => {
-                            self.focused_editor = FocusedEditor::Ascii;
-                        }
-                        Label(_) => {}
-                        Unclickable => {}
                     }
-                } else if mouse.kind == MouseEventKind::Up(MouseButton::Left) {
-                    match component {
-                        HexTable => {}
-                        AsciiTable => {}
-                        Label(i) => {
-                            if self.last_click == component {
-                                // Put string into clipboard
-                                if let Some(clipboard) = self.clipboard.as_mut() {
-                                    clipboard
-                                        .set_text(self.labels[LABEL_TITLES[i]].clone())
-                                        .unwrap();
-                                    self.labels.notification =
-                                        format!("{} copied!", LABEL_TITLES[i]);
-                                } else {
-                                    self.labels.notification =
-                                        String::from("Can't find clipboard!");
+                    MouseEventKind::Up(MouseButton::Left) => {
+                        match component {
+                            HexTable => {}
+                            AsciiTable => {}
+                            Label(i) => {
+                                if self.last_click == component {
+                                    // Put string into clipboard
+                                    if let Some(clipboard) = self.clipboard.as_mut() {
+                                        clipboard
+                                            .set_text(self.labels[LABEL_TITLES[i]].clone())
+                                            .unwrap();
+                                        self.labels.notification =
+                                            format!("{} copied!", LABEL_TITLES[i]);
+                                    } else {
+                                        self.labels.notification =
+                                            String::from("Can't find clipboard!");
+                                    }
                                 }
                             }
+                            Unclickable => {}
                         }
-                        Unclickable => {}
                     }
+                    MouseEventKind::ScrollUp => {
+                        let bytes_per_line = self.display.comp_layouts.bytes_per_line;
+
+                        // Scroll up a line in the viewport without changing cursor.
+                        self.start_address = self.start_address.saturating_sub(bytes_per_line);
+                    }
+                    MouseEventKind::ScrollDown => {
+                        let bytes_per_line = self.display.comp_layouts.bytes_per_line;
+                        let lines_per_screen = self.display.comp_layouts.lines_per_screen;
+
+                        let content_lines = self.contents.len() / bytes_per_line + 1;
+                        let start_row = self.start_address / bytes_per_line;
+
+                        // Scroll down a line in the viewport without changing cursor.
+                        // Until the viewport contains the last page of content.
+                        if start_row + lines_per_screen < content_lines {
+                            self.start_address = self.start_address.saturating_add(bytes_per_line);
+                        }
+                    }
+                    _ => {}
                 }
             }
             _ => {}
