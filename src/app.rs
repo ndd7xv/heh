@@ -171,6 +171,31 @@ impl Application {
                         }
                     }
 
+                    // TODO: The PageUp/Down handlers share similar logic with MouseScrollUp/Down handlers,
+                    // better to abstract out the logic.
+                    KeyCode::PageUp => {
+                        let bytes_per_line = self.display.comp_layouts.bytes_per_line;
+                        let lines_per_screen = self.display.comp_layouts.lines_per_screen;
+                        let bytes_to_move_back = bytes_per_line * lines_per_screen;
+                        self.start_address = self.start_address.saturating_sub(bytes_to_move_back);
+                    }
+
+                    KeyCode::PageDown => {
+                        let bytes_per_line = self.display.comp_layouts.bytes_per_line;
+                        let lines_per_screen = self.display.comp_layouts.lines_per_screen;
+
+                        let content_lines = self.contents.len() / bytes_per_line + 1;
+                        let start_row = self.start_address / bytes_per_line;
+
+                        let rows_to_scroll = cmp::min(
+                            (content_lines - start_row).saturating_sub(lines_per_screen),
+                            lines_per_screen,
+                        );
+                        let bytes_to_move_forward = bytes_per_line * rows_to_scroll;
+                        self.start_address =
+                            self.start_address.saturating_add(bytes_to_move_forward);
+                    }
+
                     // Character Input and Shortcuts
                     KeyCode::Char(char) => {
                         // A flag to indicate if a user wasn't trying to modify a byte
