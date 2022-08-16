@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches:
+    - master
+    - ci-testing
+  pull_request:
+    branches:
+    - master
+
+jobs:
+  pretty:
+    name: format and lint
+    strategy:
+      matrix:
+        platform: [ubuntu-latest]
+        toolchain: [stable]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - name: format
+        run: rustup component add rustfmt && cargo fmt --check --manifest-path $GITHUB_WORKSPACE/Cargo.toml
+      - name: lint
+        run: rustup component add clippy && cargo clippy --manifest-path $GITHUB_WORKSPACE/Cargo.toml -- -Dwarnings
+  test:
+    name: test
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+        toolchain: [1.59.0, stable]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - name: test
+        run: cargo test
