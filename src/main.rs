@@ -32,6 +32,7 @@ Terminal UI Commands:
     ALT-                Decrease the stream length by 1
     CNTRLs              Save
     CNTRLq              Quit
+    CNTRLj              Jump to Byte
 
 Left-clicking on a label will copy the contents to the clipboard.
 Left-clicking on the ASCII or hex table will focus it.

@@ -18,10 +18,16 @@ use crate::{
     },
 };
 
-#[derive(PartialEq)]
-pub(crate) enum FocusedEditor {
+#[derive(PartialEq, Clone)]
+pub(crate) enum FocusedWindow {
     Ascii,
     Hex,
+    Popup(PopupData),
+}
+
+#[derive(PartialEq, Clone)]
+pub(crate) struct PopupData {
+    pub(crate) input: String,
 }
 
 #[derive(PartialEq)]
@@ -49,12 +55,16 @@ pub(crate) struct Application {
     start_address: usize,
     /// Offset of the content byte under cursor.
     offset: usize,
+    /// The current component that is currently focused in the terminal.
+    focused_window: FocusedWindow,
+    /// The nibble that is currently selected in the Hex viewport.
+    nibble: Nibble,
     display: ScreenHandler,
     labels: LabelHandler,
     last_click: ClickedComponent,
+    /// The most previously focused window in the terminal.
+    last_window: FocusedWindow,
     clipboard: Option<Clipboard>,
-    focused_editor: FocusedEditor,
-    nibble: Nibble,
 }
 
 impl Application {
@@ -76,12 +86,13 @@ impl Application {
             contents,
             start_address: 0,
             offset: 0,
+            focused_window: FocusedWindow::Hex,
+            nibble: Nibble::Beginning,
             display: ScreenHandler::new()?,
             labels,
             last_click: Unclickable,
+            last_window: FocusedWindow::Hex,
             clipboard,
-            focused_editor: FocusedEditor::Hex,
-            nibble: Nibble::Beginning,
         })
     }
     pub(crate) fn run(&mut self) -> Result<(), Box<dyn Error>> {
@@ -101,7 +112,7 @@ impl Application {
             self.start_address,
             self.offset,
             &self.labels,
-            &self.focused_editor,
+            &self.focused_window,
             &self.nibble,
         )?;
         Ok(())
@@ -114,28 +125,31 @@ impl Application {
                     // Directional inputs that move the selected offset
                     KeyCode::Left => {
                         if self.nibble == Nibble::Beginning
-                            || self.focused_editor == FocusedEditor::Ascii
+                            && self.focused_window == FocusedWindow::Hex
+                            || self.focused_window == FocusedWindow::Ascii
                         {
                             self.offset = self.offset.saturating_sub(1);
                             self.offset_change_epilogue();
                         }
-                        if self.focused_editor == FocusedEditor::Hex {
+                        if self.focused_window == FocusedWindow::Hex {
                             self.nibble.toggle();
                         }
                     }
                     KeyCode::Right => {
-                        if self.nibble == Nibble::End || self.focused_editor == FocusedEditor::Ascii
+                        if self.nibble == Nibble::End && self.focused_window == FocusedWindow::Hex
+                            || self.focused_window == FocusedWindow::Ascii
                         {
                             self.offset =
                                 cmp::min(self.offset.saturating_add(1), self.contents.len() - 1);
                             self.offset_change_epilogue();
                         }
-                        if self.focused_editor == FocusedEditor::Hex {
+                        if self.focused_window == FocusedWindow::Hex {
                             self.nibble.toggle();
                         }
                     }
                     KeyCode::Up => {
-                        if let Some(new_offset) = self
+                        if let FocusedWindow::Popup(_) = self.focused_window {
+                        } else if let Some(new_offset) = self
                             .offset
                             .checked_sub(self.display.comp_layouts.bytes_per_line)
                         {
@@ -144,7 +158,8 @@ impl Application {
                         }
                     }
                     KeyCode::Down => {
-                        if let Some(new_offset) = self
+                        if let FocusedWindow::Popup(_) = self.focused_window {
+                        } else if let Some(new_offset) = self
                             .offset
                             .checked_add(self.display.comp_layouts.bytes_per_line)
                         {
@@ -157,7 +172,9 @@ impl Application {
 
                     // Input that removes bytes
                     KeyCode::Backspace => {
-                        if self.offset > 0 {
+                        if let FocusedWindow::Popup(popup_data) = &mut self.focused_window {
+                            popup_data.input.pop();
+                        } else if self.offset > 0 {
                             self.contents.remove(self.offset - 1);
                             self.offset = self.offset.saturating_sub(1);
                             self.offset_change_epilogue();
@@ -171,12 +188,45 @@ impl Application {
                         }
                     }
 
+                    KeyCode::Enter => {
+                        if let FocusedWindow::Popup(popup_data) = &mut self.focused_window {
+                            let res = if popup_data.input.starts_with("0x") {
+                                usize::from_str_radix(&popup_data.input[2..], 16)
+                            } else {
+                                popup_data.input.parse()
+                            };
+                            if let Ok(offset) = res {
+                                if offset >= self.contents.len() {
+                                    self.labels.notification = String::from("Invalid range!");
+                                } else {
+                                    self.offset = offset;
+                                    self.offset_change_epilogue();
+                                }
+                            } else {
+                                self.labels.notification = format!("Error: {:?}", res.unwrap_err());
+                            }
+                            self.focused_window = self.last_window.clone();
+                        }
+                    }
                     // Character Input and Shortcuts
                     KeyCode::Char(char) => {
                         // A flag to indicate if a user wasn't trying to modify a byte
                         // i.e., CNTRLs shouldn't save and then modify the file
                         let mut special_command = false;
                         match char {
+                            'j' => {
+                                if key.modifiers == KeyModifiers::CONTROL {
+                                    special_command = true;
+                                    if let FocusedWindow::Popup(_) = self.focused_window {
+                                        self.focused_window = self.last_window.clone();
+                                    } else {
+                                        self.last_window = self.focused_window.clone();
+                                        self.focused_window = FocusedWindow::Popup(PopupData {
+                                            input: String::new(),
+                                        });
+                                    }
+                                }
+                            }
                             'q' => {
                                 if key.modifiers == KeyModifiers::CONTROL {
                                     return Ok(false);
@@ -216,8 +266,8 @@ impl Application {
                         if !special_command
                             && key.modifiers | KeyModifiers::SHIFT == KeyModifiers::SHIFT
                         {
-                            match self.focused_editor {
-                                FocusedEditor::Ascii => {
+                            match &mut self.focused_window {
+                                FocusedWindow::Ascii => {
                                     self.contents[self.offset] = char as u8;
                                     self.offset = cmp::min(
                                         self.offset.saturating_add(1),
@@ -225,7 +275,7 @@ impl Application {
                                     );
                                     self.offset_change_epilogue();
                                 }
-                                FocusedEditor::Hex => {
+                                FocusedWindow::Hex => {
                                     if char.is_ascii_hexdigit() {
                                         // This can probably be optimized...
                                         match self.nibble {
@@ -265,6 +315,9 @@ impl Application {
                                         self.labels.notification = format!("Invalid Hex: {char}");
                                     }
                                 }
+                                FocusedWindow::Popup(popup_data) => {
+                                    popup_data.input.push(char);
+                                }
                             }
                         }
                     }
@@ -272,18 +325,20 @@ impl Application {
                 }
             }
             Event::Mouse(mouse) => {
-                let component = self
-                    .display
-                    .identify_clicked_component(mouse.row, mouse.column);
+                let component = self.display.identify_clicked_component(
+                    mouse.row,
+                    mouse.column,
+                    &self.focused_window,
+                );
                 match mouse.kind {
                     MouseEventKind::Down(MouseButton::Left) => {
                         self.last_click = component;
                         match self.last_click {
                             HexTable => {
-                                self.focused_editor = FocusedEditor::Hex;
+                                self.focused_window = FocusedWindow::Hex;
                             }
                             AsciiTable => {
-                                self.focused_editor = FocusedEditor::Ascii;
+                                self.focused_window = FocusedWindow::Ascii;
                             }
                             Label(_) => {}
                             Unclickable => {}
