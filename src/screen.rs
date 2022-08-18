@@ -15,12 +15,12 @@ use tui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     text::{Span, Spans, Text},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Clear, Paragraph},
     Terminal,
 };
 
 use crate::{
-    app::{FocusedEditor, Nibble},
+    app::{FocusedWindow, Nibble},
     label::{LabelHandler, LABEL_TITLES},
 };
 
@@ -38,6 +38,7 @@ pub(crate) struct ComponentLayouts {
     line_numbers: Rect,
     hex: Rect,
     ascii: Rect,
+    popup: Rect,
     labels: Vec<Rect>,
     pub(crate) bytes_per_line: usize,
     pub(crate) lines_per_screen: usize,
@@ -76,9 +77,17 @@ impl ScreenHandler {
         self.terminal.show_cursor()?;
         Ok(())
     }
-    pub(crate) fn identify_clicked_component(&self, row: u16, col: u16) -> ClickedComponent {
+    pub(crate) fn identify_clicked_component(
+        &self,
+        row: u16,
+        col: u16,
+        focused_window: &FocusedWindow,
+    ) -> ClickedComponent {
         let click = Rect::new(col, row, 0, 0);
-        if self.comp_layouts.hex.union(click) == self.comp_layouts.hex {
+        let popup_enabled = matches!(focused_window, FocusedWindow::Popup(_));
+        if popup_enabled && self.comp_layouts.popup.union(click) == self.comp_layouts.popup {
+            return ClickedComponent::Unclickable;
+        } else if self.comp_layouts.hex.union(click) == self.comp_layouts.hex {
             return ClickedComponent::HexTable;
         } else if self.comp_layouts.ascii.union(click) == self.comp_layouts.ascii {
             return ClickedComponent::AsciiTable;
@@ -128,6 +137,9 @@ impl ScreenHandler {
             )
         }
 
+        // Calculate popup dimensions
+        let popup = popup_rect(cmp::max(45, frame.width / 2), 3, frame);
+
         // Calculate bytes per line
         let bytes_per_line = ((editors[1].width - 2) / 3) as usize;
         let lines_per_screen = (editors[1].height - 2) as usize;
@@ -136,6 +148,7 @@ impl ScreenHandler {
             line_numbers: editors[0],
             hex: editors[1],
             ascii: editors[2],
+            popup,
             bytes_per_line,
             lines_per_screen,
             labels,
@@ -245,15 +258,16 @@ impl ScreenHandler {
         start_address: usize,
         offset: usize,
         labels: &LabelHandler,
-        focused_editor: &FocusedEditor,
+        focused_window: &FocusedWindow,
         nibble: &Nibble,
     ) -> Result<(), Box<dyn Error>> {
         self.terminal.draw(|f| {
             // We check if we need to recompute the terminal size in the case that the saved off variable
             // differs from the current frame, which can occur when a terminal is resized between an event
             // handling and a rendering.
-            if f.size() != self.terminal_size {
-                self.terminal_size = f.size();
+            let size = f.size();
+            if size != self.terminal_size {
+                self.terminal_size = size;
                 self.comp_layouts = ScreenHandler::calculate_dimensions(self.terminal_size);
             }
 
@@ -294,7 +308,7 @@ impl ScreenHandler {
             f.render_widget(
                 Paragraph::new(hex_text).block(
                     Block::default().borders(Borders::ALL).title("Hex").style(
-                        if *focused_editor == FocusedEditor::Hex {
+                        if *focused_window == FocusedWindow::Hex {
                             Style::default().fg(Color::Yellow)
                         } else {
                             Style::default()
@@ -304,11 +318,11 @@ impl ScreenHandler {
                 self.comp_layouts.hex,
             );
 
-            // Render Normal
+            // Render ASCII
             f.render_widget(
                 Paragraph::new(ascii_text).block(
                     Block::default().borders(Borders::ALL).title("ASCII").style(
-                        if *focused_editor == FocusedEditor::Ascii {
+                        if *focused_window == FocusedWindow::Ascii {
                             Style::default().fg(Color::Yellow)
                         } else {
                             Style::default()
@@ -329,7 +343,52 @@ impl ScreenHandler {
                     *label,
                 );
             }
+
+            // Render Popup
+            if let FocusedWindow::Popup(popup_data) = focused_window {
+                f.render_widget(Clear, self.comp_layouts.popup);
+                f.render_widget(
+                    Paragraph::new(Span::styled(
+                        &popup_data.input,
+                        Style::default().fg(Color::White),
+                    ))
+                    .block(
+                        Block::default()
+                            .title("Jump to Byte:")
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Yellow)),
+                    ),
+                    self.comp_layouts.popup,
+                );
+            }
         })?;
         Ok(())
     }
+}
+
+/// Generates the dimensions of an x by y popup that is centered in Rect r.
+fn popup_rect(x: u16, y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Length((r.height - y) / 2),
+                Constraint::Length(y),
+                Constraint::Min((r.height - y) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Min((r.width - x) / 2),
+                Constraint::Length(x),
+                Constraint::Min((r.width - x) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(popup_layout[1])[1]
 }
