@@ -169,6 +169,26 @@ impl Application {
                             }
                         }
                     }
+                    KeyCode::Home => {
+                        let bytes_per_line = self.display.comp_layouts.bytes_per_line;
+                        self.offset = self.offset / bytes_per_line * bytes_per_line;
+                        self.offset_change_epilogue();
+
+                        if self.focused_window == FocusedWindow::Hex && self.nibble == Nibble::End {
+                            self.nibble.toggle();
+                        }
+                    }
+                    KeyCode::End => {
+                        let bytes_per_line = self.display.comp_layouts.bytes_per_line;
+                        self.offset += bytes_per_line - 1 - self.offset % bytes_per_line;
+                        self.offset_change_epilogue();
+
+                        if self.focused_window == FocusedWindow::Hex
+                            && self.nibble == Nibble::Beginning
+                        {
+                            self.nibble.toggle();
+                        }
+                    }
 
                     // Input that removes bytes
                     KeyCode::Backspace => {
