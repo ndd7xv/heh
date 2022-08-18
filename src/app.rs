@@ -13,7 +13,7 @@ use arboard::Clipboard;
 use crate::{
     label::{LabelHandler, LABEL_TITLES},
     screen::{
-        ClickedComponent::{self, *},
+        ClickedComponent::{self, AsciiTable, HexTable, Label, Unclickable},
         ScreenHandler,
     },
 };
@@ -96,7 +96,7 @@ impl Application {
         })
     }
     pub(crate) fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        self.display.setup()?;
+        ScreenHandler::setup()?;
         loop {
             self.render_display()?;
             if !self.handle_input()? {
@@ -331,7 +331,7 @@ impl Application {
                                                 self.offset_change_epilogue();
                                             }
                                         }
-                                        self.nibble.toggle()
+                                        self.nibble.toggle();
                                     } else {
                                         self.labels.notification = format!("Invalid Hex: {char}");
                                     }
@@ -361,14 +361,12 @@ impl Application {
                             AsciiTable => {
                                 self.focused_window = FocusedWindow::Ascii;
                             }
-                            Label(_) => {}
-                            Unclickable => {}
+                            Label(_) | Unclickable => {}
                         }
                     }
                     MouseEventKind::Up(MouseButton::Left) => {
                         match component {
-                            HexTable => {}
-                            AsciiTable => {}
+                            HexTable | AsciiTable | Unclickable => {}
                             Label(i) => {
                                 if self.last_click == component {
                                     // Put string into clipboard
@@ -384,7 +382,6 @@ impl Application {
                                     }
                                 }
                             }
-                            Unclickable => {}
                         }
                     }
                     MouseEventKind::ScrollUp => {
@@ -409,16 +406,15 @@ impl Application {
                     _ => {}
                 }
             }
-            _ => {}
+            Event::Resize(_, _) => {}
         }
         Ok(true)
     }
     // Puts the offset back into the display
     fn adjust_offset(&mut self) {
-        let line_adjustment = ((self.offset as f32 - self.start_address as f32)
-            / self.display.comp_layouts.bytes_per_line as f32)
-            .floor()
-            .abs() as usize;
+        let line_adjustment = (cmp::max(self.offset, self.start_address)
+            - cmp::min(self.offset, self.start_address))
+            / self.display.comp_layouts.bytes_per_line;
         let bytes_per_screen =
             self.display.comp_layouts.bytes_per_line * self.display.comp_layouts.lines_per_screen;
         if self.offset < self.start_address {

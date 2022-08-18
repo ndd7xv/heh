@@ -62,7 +62,7 @@ impl ScreenHandler {
             comp_layouts: Self::calculate_dimensions(terminal_size),
         })
     }
-    pub(crate) fn setup(&self) -> Result<(), Box<dyn Error>> {
+    pub(crate) fn setup() -> Result<(), Box<dyn Error>> {
         enable_raw_mode()?;
         execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
         Ok(())
@@ -134,7 +134,7 @@ impl ScreenHandler {
                         Constraint::Ratio(1, 4),
                     ])
                     .split(label),
-            )
+            );
         }
 
         // Calculate popup dimensions
@@ -186,7 +186,7 @@ impl ScreenHandler {
                 Spans::from(
                     chunk
                         .iter()
-                        .map(|byte| {
+                        .map(|&byte| {
                             Span::styled(
                                 format!("{byte:02X?} "),
                                 Style::default().fg(*get_color(byte)),
@@ -205,7 +205,7 @@ impl ScreenHandler {
                 Spans::from(
                     chunk
                         .iter()
-                        .map(|byte| {
+                        .map(|&byte| {
                             Span::styled(as_str(byte), Style::default().fg(*get_color(byte)))
                         })
                         .collect::<Vec<Span>>(),
@@ -223,9 +223,9 @@ impl ScreenHandler {
             hex_text[cursor_row - start_row].0[cursor_col] = Span::styled(
                 byte.next().unwrap().to_string(),
                 if nibble == &Nibble::Beginning {
-                    Style::default().fg(*get_color(&cursor_byte)).bg(COLOR_NULL)
+                    Style::default().fg(*get_color(cursor_byte)).bg(COLOR_NULL)
                 } else {
-                    Style::default().fg(*get_color(&cursor_byte))
+                    Style::default().fg(*get_color(cursor_byte))
                 },
             );
             hex_text[cursor_row - start_row].0.insert(
@@ -233,9 +233,9 @@ impl ScreenHandler {
                 Span::styled(
                     byte.next().unwrap().to_string(),
                     if nibble == &Nibble::End {
-                        Style::default().fg(*get_color(&cursor_byte)).bg(COLOR_NULL)
+                        Style::default().fg(*get_color(cursor_byte)).bg(COLOR_NULL)
                     } else {
-                        Style::default().fg(*get_color(&cursor_byte))
+                        Style::default().fg(*get_color(cursor_byte))
                     },
                 ),
             );
@@ -245,8 +245,8 @@ impl ScreenHandler {
 
             // Highlight the selected byte in the ASCII table
             ascii_text[cursor_row - start_row].0[cursor_col] = Span::styled(
-                as_str(&cursor_byte),
-                Style::default().fg(*get_color(&cursor_byte)).bg(COLOR_NULL),
+                as_str(cursor_byte),
+                Style::default().fg(*get_color(cursor_byte)).bg(COLOR_NULL),
             );
         }
 

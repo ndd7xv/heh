@@ -1,3 +1,4 @@
+#![allow(clippy::cast_possible_wrap)]
 use std::ops::Index;
 
 pub(crate) static LABEL_TITLES: [&str; 16] = [
@@ -139,17 +140,16 @@ impl LabelHandler {
         self.unsigned_sixtyfour = u64::from_le_bytes(bytes.try_into().unwrap()).to_string();
     }
     fn update_float_thirtytwo(&mut self, bytes: &[u8]) {
-        self.float_thirtytwo = format!("{:e}", f32::from_le_bytes(bytes.try_into().unwrap()))
+        self.float_thirtytwo = format!("{:e}", f32::from_le_bytes(bytes.try_into().unwrap()));
     }
     fn update_float_sixtyfour(&mut self, bytes: &[u8]) {
-        self.float_sixtyfour = format!("{:e}", f64::from_le_bytes(bytes.try_into().unwrap()))
+        self.float_sixtyfour = format!("{:e}", f64::from_le_bytes(bytes.try_into().unwrap()));
     }
     fn update_binary(&mut self, bytes: &[u8]) {
         self.binary = bytes
             .iter()
             .map(|byte| format!("{byte:08b}"))
-            .collect::<Vec<String>>()
-            .join("")
+            .collect::<String>()
             .chars()
             .take(self.stream_length)
             .collect();
