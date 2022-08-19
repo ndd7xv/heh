@@ -6,6 +6,7 @@ use app::Application;
 
 mod app;
 mod byte;
+mod input;
 mod label;
 mod screen;
 

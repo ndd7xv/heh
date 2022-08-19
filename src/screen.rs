@@ -20,7 +20,8 @@ use tui::{
 };
 
 use crate::{
-    app::{FocusedWindow, Nibble},
+    app::{AppData, Nibble},
+    input::{FocusedWindow, InputHandler},
     label::{LabelHandler, LABEL_TITLES},
 };
 
@@ -81,10 +82,10 @@ impl ScreenHandler {
         &self,
         row: u16,
         col: u16,
-        focused_window: &FocusedWindow,
+        window: &dyn InputHandler,
     ) -> ClickedComponent {
         let click = Rect::new(col, row, 0, 0);
-        let popup_enabled = matches!(focused_window, FocusedWindow::Popup(_));
+        let popup_enabled = window.is_focusing(FocusedWindow::JumpToByte);
         if popup_enabled && self.comp_layouts.popup.union(click) == self.comp_layouts.popup {
             return ClickedComponent::Unclickable;
         } else if self.comp_layouts.hex.union(click) == self.comp_layouts.hex {
@@ -254,12 +255,9 @@ impl ScreenHandler {
     }
     pub(crate) fn render(
         &mut self,
-        contents: &[u8],
-        start_address: usize,
-        offset: usize,
+        app_info: &AppData,
         labels: &LabelHandler,
-        focused_window: &FocusedWindow,
-        nibble: &Nibble,
+        window: &dyn InputHandler,
     ) -> Result<(), Box<dyn Error>> {
         self.terminal.draw(|f| {
             // We check if we need to recompute the terminal size in the case that the saved off variable
@@ -289,12 +287,12 @@ impl ScreenHandler {
             }
 
             let (address_text, hex_text, ascii_text) = Self::generate_text(
-                contents,
-                start_address,
-                offset,
+                &app_info.contents,
+                app_info.start_address,
+                app_info.offset,
                 self.comp_layouts.bytes_per_line,
                 self.comp_layouts.lines_per_screen,
-                nibble,
+                &app_info.nibble,
             );
 
             // Render Line Numbers
@@ -308,7 +306,7 @@ impl ScreenHandler {
             f.render_widget(
                 Paragraph::new(hex_text).block(
                     Block::default().borders(Borders::ALL).title("Hex").style(
-                        if *focused_window == FocusedWindow::Hex {
+                        if window.is_focusing(FocusedWindow::Hex) {
                             Style::default().fg(Color::Yellow)
                         } else {
                             Style::default()
@@ -322,7 +320,7 @@ impl ScreenHandler {
             f.render_widget(
                 Paragraph::new(ascii_text).block(
                     Block::default().borders(Borders::ALL).title("ASCII").style(
-                        if *focused_window == FocusedWindow::Ascii {
+                        if window.is_focusing(FocusedWindow::Ascii) {
                             Style::default().fg(Color::Yellow)
                         } else {
                             Style::default()
@@ -345,11 +343,11 @@ impl ScreenHandler {
             }
 
             // Render Popup
-            if let FocusedWindow::Popup(popup_data) = focused_window {
+            if window.is_focusing(FocusedWindow::JumpToByte) {
                 f.render_widget(Clear, self.comp_layouts.popup);
                 f.render_widget(
                     Paragraph::new(Span::styled(
-                        &popup_data.input,
+                        window.get_user_input(),
                         Style::default().fg(Color::White),
                     ))
                     .block(

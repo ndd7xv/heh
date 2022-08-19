@@ -6,29 +6,20 @@ use std::{
     process,
 };
 
-use crossterm::event::{self, Event, KeyCode, KeyModifiers, MouseButton, MouseEventKind};
+use crossterm::event::{
+    self, Event, KeyCode, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+};
 
 use arboard::Clipboard;
 
 use crate::{
+    input::{Editor, FocusedWindow, InputHandler, JumpToByte},
     label::{LabelHandler, LABEL_TITLES},
     screen::{
         ClickedComponent::{self, AsciiTable, HexTable, Label, Unclickable},
         ScreenHandler,
     },
 };
-
-#[derive(PartialEq, Clone)]
-pub(crate) enum FocusedWindow {
-    Ascii,
-    Hex,
-    Popup(PopupData),
-}
-
-#[derive(PartialEq, Clone)]
-pub(crate) struct PopupData {
-    pub(crate) input: String,
-}
 
 #[derive(PartialEq)]
 pub(crate) enum Nibble {
@@ -37,7 +28,7 @@ pub(crate) enum Nibble {
 }
 
 impl Nibble {
-    fn toggle(&mut self) {
+    pub(crate) fn toggle(&mut self) {
         match self {
             Nibble::Beginning => *self = Nibble::End,
             Nibble::End => *self = Nibble::Beginning,
@@ -45,26 +36,43 @@ impl Nibble {
     }
 }
 
-/// Application provides the user interaction interface and renders the terminal screen in response to user actions.
-pub(crate) struct Application {
+/// State Information needed by the `ScreenHandler` and `InputHandler`.
+pub(crate) struct AppData {
     /// The file under editting.
     file: File,
     /// The file content.
-    contents: Vec<u8>,
+    pub(crate) contents: Vec<u8>,
     /// Offset of the first content byte that is visible on the screen.
-    start_address: usize,
+    pub(crate) start_address: usize,
     /// Offset of the content byte under cursor.
-    offset: usize,
-    /// The current component that is currently focused in the terminal.
-    focused_window: FocusedWindow,
+    pub(crate) offset: usize,
     /// The nibble that is currently selected in the Hex viewport.
-    nibble: Nibble,
-    display: ScreenHandler,
-    labels: LabelHandler,
+    pub(crate) nibble: Nibble,
+    /// The last clicked (key down AND key up) label/window.
     last_click: ClickedComponent,
-    /// The most previously focused window in the terminal.
-    last_window: FocusedWindow,
+    /// Copies label data to your clipboard.
     clipboard: Option<Clipboard>,
+}
+
+/// Application provides the user interaction interface and renders the terminal screen in response
+/// to user actions.
+pub(crate) struct Application {
+    /// The application's state and data.
+    data: AppData,
+
+    /// Renders and displays objects to the terminal.
+    display: ScreenHandler,
+
+    /// The labels at the bottom of the UI that provide information
+    /// based on the current offset.
+    pub(crate) labels: LabelHandler,
+
+    /// The window that handles user input. This is usually in the form of the Hex/ASCII editor
+    /// or popups.
+    input_handler: Box<dyn InputHandler>,
+
+    /// The input that was most previously selected.
+    last_input_handler: Editor,
 }
 
 impl Application {
@@ -82,17 +90,19 @@ impl Application {
             labels.notification = String::from("Can't find clipboard!");
         }
         Ok(Application {
-            file,
-            contents,
-            start_address: 0,
-            offset: 0,
-            focused_window: FocusedWindow::Hex,
-            nibble: Nibble::Beginning,
+            data: AppData {
+                file,
+                contents,
+                start_address: 0,
+                offset: 0,
+                nibble: Nibble::Beginning,
+                last_click: Unclickable,
+                clipboard,
+            },
             display: ScreenHandler::new()?,
             labels,
-            last_click: Unclickable,
-            last_window: FocusedWindow::Hex,
-            clipboard,
+            last_input_handler: Editor::Hex,
+            input_handler: Box::from(Editor::Hex),
         })
     }
     pub(crate) fn run(&mut self) -> Result<(), Box<dyn Error>> {
@@ -107,332 +117,194 @@ impl Application {
         Ok(())
     }
     fn render_display(&mut self) -> Result<(), Box<dyn Error>> {
-        self.display.render(
-            &self.contents,
-            self.start_address,
-            self.offset,
-            &self.labels,
-            &self.focused_window,
-            &self.nibble,
-        )?;
+        self.display
+            .render(&self.data, &self.labels, self.input_handler.as_ref())?;
         Ok(())
     }
     fn handle_input(&mut self) -> Result<bool, Box<dyn Error>> {
         let event = event::read()?;
         match event {
-            Event::Key(key) => {
-                match key.code {
-                    // Directional inputs that move the selected offset
-                    KeyCode::Left => {
-                        if self.nibble == Nibble::Beginning
-                            && self.focused_window == FocusedWindow::Hex
-                            || self.focused_window == FocusedWindow::Ascii
-                        {
-                            self.offset = self.offset.saturating_sub(1);
-                            self.offset_change_epilogue();
-                        }
-                        if self.focused_window == FocusedWindow::Hex {
-                            self.nibble.toggle();
-                        }
-                    }
-                    KeyCode::Right => {
-                        if self.nibble == Nibble::End && self.focused_window == FocusedWindow::Hex
-                            || self.focused_window == FocusedWindow::Ascii
-                        {
-                            self.offset =
-                                cmp::min(self.offset.saturating_add(1), self.contents.len() - 1);
-                            self.offset_change_epilogue();
-                        }
-                        if self.focused_window == FocusedWindow::Hex {
-                            self.nibble.toggle();
-                        }
-                    }
-                    KeyCode::Up => {
-                        if let FocusedWindow::Popup(_) = self.focused_window {
-                        } else if let Some(new_offset) = self
-                            .offset
-                            .checked_sub(self.display.comp_layouts.bytes_per_line)
-                        {
-                            self.offset = new_offset;
-                            self.offset_change_epilogue();
-                        }
-                    }
-                    KeyCode::Down => {
-                        if let FocusedWindow::Popup(_) = self.focused_window {
-                        } else if let Some(new_offset) = self
-                            .offset
-                            .checked_add(self.display.comp_layouts.bytes_per_line)
-                        {
-                            if new_offset < self.contents.len() {
-                                self.offset = new_offset;
-                                self.offset_change_epilogue();
-                            }
-                        }
-                    }
-                    KeyCode::Home => {
-                        let bytes_per_line = self.display.comp_layouts.bytes_per_line;
-                        self.offset = self.offset / bytes_per_line * bytes_per_line;
-                        self.offset_change_epilogue();
-
-                        if self.focused_window == FocusedWindow::Hex {
-                            self.nibble = Nibble::Beginning;
-                        }
-                    }
-                    KeyCode::End => {
-                        let bytes_per_line = self.display.comp_layouts.bytes_per_line;
-                        self.offset = cmp::min(
-                            self.offset + (bytes_per_line - 1 - self.offset % bytes_per_line),
-                            self.contents.len() - 1,
-                        );
-                        self.offset_change_epilogue();
-
-                        if self.focused_window == FocusedWindow::Hex {
-                            self.nibble = Nibble::End;
-                        }
-                    }
-
-                    // Input that removes bytes
-                    KeyCode::Backspace => {
-                        if let FocusedWindow::Popup(popup_data) = &mut self.focused_window {
-                            popup_data.input.pop();
-                        } else if self.offset > 0 {
-                            self.contents.remove(self.offset - 1);
-                            self.offset = self.offset.saturating_sub(1);
-                            self.offset_change_epilogue();
-                        }
-                    }
-                    KeyCode::Delete => {
-                        if self.contents.len() > 1 {
-                            self.contents.remove(self.offset);
-                            self.offset = self.offset.saturating_sub(1);
-                            self.offset_change_epilogue();
-                        }
-                    }
-
-                    KeyCode::Enter => {
-                        if let FocusedWindow::Popup(popup_data) = &mut self.focused_window {
-                            let res = if popup_data.input.starts_with("0x") {
-                                usize::from_str_radix(&popup_data.input[2..], 16)
-                            } else {
-                                popup_data.input.parse()
-                            };
-                            if let Ok(offset) = res {
-                                if offset >= self.contents.len() {
-                                    self.labels.notification = String::from("Invalid range!");
-                                } else {
-                                    self.offset = offset;
-                                    self.offset_change_epilogue();
-                                }
-                            } else {
-                                self.labels.notification = format!("Error: {:?}", res.unwrap_err());
-                            }
-                            self.focused_window = self.last_window.clone();
-                        }
-                    }
-                    // Character Input and Shortcuts
-                    KeyCode::Char(char) => {
-                        // A flag to indicate if a user wasn't trying to modify a byte
-                        // i.e., CNTRLs shouldn't save and then modify the file
-                        let mut special_command = false;
-                        match char {
-                            'j' => {
-                                if key.modifiers == KeyModifiers::CONTROL {
-                                    special_command = true;
-                                    if let FocusedWindow::Popup(_) = self.focused_window {
-                                        self.focused_window = self.last_window.clone();
-                                    } else {
-                                        self.last_window = self.focused_window.clone();
-                                        self.focused_window = FocusedWindow::Popup(PopupData {
-                                            input: String::new(),
-                                        });
-                                    }
-                                }
-                            }
-                            'q' => {
-                                if key.modifiers == KeyModifiers::CONTROL {
-                                    return Ok(false);
-                                }
-                            }
-                            's' => {
-                                if key.modifiers == KeyModifiers::CONTROL {
-                                    special_command = true;
-                                    self.file.seek(SeekFrom::Start(0))?;
-                                    self.file.write_all(&self.contents)?;
-                                    self.file.set_len(self.contents.len() as u64)?;
-                                    self.labels.notification = String::from("Saved!");
-                                }
-                            }
-                            '=' => {
-                                if key.modifiers == KeyModifiers::ALT {
-                                    special_command = true;
-                                    self.labels.update_stream_length(cmp::min(
-                                        self.labels.get_stream_length() + 1,
-                                        64,
-                                    ));
-                                    self.labels.update_streams(&self.contents[self.offset..]);
-                                }
-                            }
-                            '-' => {
-                                if key.modifiers == KeyModifiers::ALT {
-                                    special_command = true;
-                                    self.labels.update_stream_length(cmp::max(
-                                        self.labels.get_stream_length().saturating_sub(1),
-                                        0,
-                                    ));
-                                    self.labels.update_streams(&self.contents[self.offset..]);
-                                }
-                            }
-                            _ => {}
-                        }
-                        if !special_command
-                            && key.modifiers | KeyModifiers::SHIFT == KeyModifiers::SHIFT
-                        {
-                            match &mut self.focused_window {
-                                FocusedWindow::Ascii => {
-                                    self.contents[self.offset] = char as u8;
-                                    self.offset = cmp::min(
-                                        self.offset.saturating_add(1),
-                                        self.contents.len() - 1,
-                                    );
-                                    self.offset_change_epilogue();
-                                }
-                                FocusedWindow::Hex => {
-                                    if char.is_ascii_hexdigit() {
-                                        // This can probably be optimized...
-                                        match self.nibble {
-                                            Nibble::Beginning => {
-                                                let mut src = char.to_string();
-                                                src.push(
-                                                    format!("{:02X}", self.contents[self.offset])
-                                                        .chars()
-                                                        .last()
-                                                        .unwrap(),
-                                                );
-                                                let changed =
-                                                    u8::from_str_radix(src.as_str(), 16).unwrap();
-                                                self.contents[self.offset] = changed;
-                                            }
-                                            Nibble::End => {
-                                                let mut src =
-                                                    format!("{:02X}", self.contents[self.offset])
-                                                        .chars()
-                                                        .take(1)
-                                                        .collect::<String>();
-                                                src.push(char);
-                                                let changed =
-                                                    u8::from_str_radix(src.as_str(), 16).unwrap();
-                                                self.contents[self.offset] = changed;
-
-                                                // Move to the next byte
-                                                self.offset = cmp::min(
-                                                    self.offset.saturating_add(1),
-                                                    self.contents.len() - 1,
-                                                );
-                                                self.offset_change_epilogue();
-                                            }
-                                        }
-                                        self.nibble.toggle();
-                                    } else {
-                                        self.labels.notification = format!("Invalid Hex: {char}");
-                                    }
-                                }
-                                FocusedWindow::Popup(popup_data) => {
-                                    popup_data.input.push(char);
-                                }
-                            }
-                        }
-                    }
-                    _ => {}
+            Event::Key(key) => match key.code {
+                KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down => {
+                    self.handle_arrow_key_input(key.code);
                 }
-            }
+
+                KeyCode::Home => {
+                    self.input_handler
+                        .home(&mut self.data, &mut self.display, &mut self.labels);
+                }
+                KeyCode::End => {
+                    self.input_handler
+                        .end(&mut self.data, &mut self.display, &mut self.labels);
+                }
+
+                KeyCode::Backspace => {
+                    self.input_handler.backspace(
+                        &mut self.data,
+                        &mut self.display,
+                        &mut self.labels,
+                    );
+                }
+                KeyCode::Delete => {
+                    self.input_handler
+                        .delete(&mut self.data, &mut self.display, &mut self.labels);
+                }
+
+                KeyCode::Enter => {
+                    self.input_handler
+                        .enter(&mut self.data, &mut self.display, &mut self.labels);
+                    self.input_handler = Box::from(self.last_input_handler);
+                }
+
+                KeyCode::Char(char) => {
+                    // Because CNTRLq is the signal to quit, we propogate the message
+                    // if this handling method returns false
+                    if !self.handle_character_input(char, key.modifiers)? {
+                        return Ok(false);
+                    };
+                }
+                _ => {}
+            },
             Event::Mouse(mouse) => {
-                let component = self.display.identify_clicked_component(
-                    mouse.row,
-                    mouse.column,
-                    &self.focused_window,
-                );
-                match mouse.kind {
-                    MouseEventKind::Down(MouseButton::Left) => {
-                        self.last_click = component;
-                        match self.last_click {
-                            HexTable => {
-                                self.focused_window = FocusedWindow::Hex;
-                            }
-                            AsciiTable => {
-                                self.focused_window = FocusedWindow::Ascii;
-                            }
-                            Label(_) | Unclickable => {}
-                        }
-                    }
-                    MouseEventKind::Up(MouseButton::Left) => {
-                        match component {
-                            HexTable | AsciiTable | Unclickable => {}
-                            Label(i) => {
-                                if self.last_click == component {
-                                    // Put string into clipboard
-                                    if let Some(clipboard) = self.clipboard.as_mut() {
-                                        clipboard
-                                            .set_text(self.labels[LABEL_TITLES[i]].clone())
-                                            .unwrap();
-                                        self.labels.notification =
-                                            format!("{} copied!", LABEL_TITLES[i]);
-                                    } else {
-                                        self.labels.notification =
-                                            String::from("Can't find clipboard!");
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    MouseEventKind::ScrollUp => {
-                        let bytes_per_line = self.display.comp_layouts.bytes_per_line;
-
-                        // Scroll up a line in the viewport without changing cursor.
-                        self.start_address = self.start_address.saturating_sub(bytes_per_line);
-                    }
-                    MouseEventKind::ScrollDown => {
-                        let bytes_per_line = self.display.comp_layouts.bytes_per_line;
-                        let lines_per_screen = self.display.comp_layouts.lines_per_screen;
-
-                        let content_lines = self.contents.len() / bytes_per_line + 1;
-                        let start_row = self.start_address / bytes_per_line;
-
-                        // Scroll down a line in the viewport without changing cursor.
-                        // Until the viewport contains the last page of content.
-                        if start_row + lines_per_screen < content_lines {
-                            self.start_address = self.start_address.saturating_add(bytes_per_line);
-                        }
-                    }
-                    _ => {}
-                }
+                self.handle_mouse_input(mouse);
             }
             Event::Resize(_, _) => {}
         }
         Ok(true)
     }
-    // Puts the offset back into the display
-    fn adjust_offset(&mut self) {
-        let line_adjustment = (cmp::max(self.offset, self.start_address)
-            - cmp::min(self.offset, self.start_address))
-            / self.display.comp_layouts.bytes_per_line;
-        let bytes_per_screen =
-            self.display.comp_layouts.bytes_per_line * self.display.comp_layouts.lines_per_screen;
-        if self.offset < self.start_address {
-            self.start_address = self
-                .start_address
-                .saturating_sub(self.display.comp_layouts.bytes_per_line * line_adjustment);
-        } else if self.offset >= self.start_address + (bytes_per_screen)
-            && self.start_address + self.display.comp_layouts.bytes_per_line < self.contents.len()
-        {
-            self.start_address = self.start_address.saturating_add(
-                self.display.comp_layouts.bytes_per_line
-                    * (line_adjustment + 1 - self.display.comp_layouts.lines_per_screen),
-            );
+    fn handle_arrow_key_input(&mut self, key: KeyCode) {
+        match key {
+            KeyCode::Left => {
+                self.input_handler
+                    .left(&mut self.data, &mut self.display, &mut self.labels);
+            }
+            KeyCode::Right => {
+                self.input_handler
+                    .right(&mut self.data, &mut self.display, &mut self.labels);
+            }
+            KeyCode::Up => {
+                self.input_handler
+                    .up(&mut self.data, &mut self.display, &mut self.labels);
+            }
+            KeyCode::Down => {
+                self.input_handler
+                    .down(&mut self.data, &mut self.display, &mut self.labels);
+            }
+            _ => unreachable!(),
         }
-        self.labels.offset = format!("{:#X}", self.offset);
     }
-    fn offset_change_epilogue(&mut self) {
-        self.labels.update_all(&self.contents[self.offset..]);
-        self.adjust_offset();
+    fn handle_character_input(
+        &mut self,
+        char: char,
+        modifiers: KeyModifiers,
+    ) -> Result<bool, Box<dyn Error>> {
+        if modifiers == KeyModifiers::CONTROL {
+            match char {
+                'j' => {
+                    if self.input_handler.is_focusing(FocusedWindow::JumpToByte) {
+                        self.input_handler = Box::from(self.last_input_handler);
+                    } else {
+                        self.last_input_handler = *self
+                            .input_handler
+                            .as_any()
+                            .downcast_ref()
+                            .expect("The current window wasn't an editor");
+                        self.input_handler = Box::from(JumpToByte::new());
+                    }
+                }
+                'q' => return Ok(false),
+                's' => {
+                    self.data.file.seek(SeekFrom::Start(0))?;
+                    self.data.file.write_all(&self.data.contents)?;
+                    self.data.file.set_len(self.data.contents.len() as u64)?;
+                    self.labels.notification = String::from("Saved!");
+                }
+                _ => {}
+            }
+        } else if modifiers == KeyModifiers::ALT {
+            match char {
+                '=' => {
+                    self.labels
+                        .update_stream_length(cmp::min(self.labels.get_stream_length() + 1, 64));
+                    self.labels
+                        .update_streams(&self.data.contents[self.data.offset..]);
+                }
+                '-' => {
+                    self.labels.update_stream_length(cmp::max(
+                        self.labels.get_stream_length().saturating_sub(1),
+                        0,
+                    ));
+                    self.labels
+                        .update_streams(&self.data.contents[self.data.offset..]);
+                }
+                _ => {}
+            }
+        } else if modifiers | KeyModifiers::NONE | KeyModifiers::SHIFT
+            == KeyModifiers::NONE | KeyModifiers::SHIFT
+        {
+            self.input_handler
+                .char(&mut self.data, &mut self.display, &mut self.labels, char);
+        }
+        Ok(true)
+    }
+    fn handle_mouse_input(&mut self, mouse: MouseEvent) {
+        let component = self.display.identify_clicked_component(
+            mouse.row,
+            mouse.column,
+            self.input_handler.as_ref(),
+        );
+        match mouse.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                self.data.last_click = component;
+                match self.data.last_click {
+                    HexTable => {
+                        self.input_handler = Box::from(Editor::Hex);
+                    }
+                    AsciiTable => {
+                        self.input_handler = Box::from(Editor::Ascii);
+                    }
+                    Label(_) | Unclickable => {}
+                }
+            }
+            MouseEventKind::Up(MouseButton::Left) => {
+                match component {
+                    HexTable | AsciiTable | Unclickable => {}
+                    Label(i) => {
+                        if self.data.last_click == component {
+                            // Put string into clipboard
+                            if let Some(clipboard) = self.data.clipboard.as_mut() {
+                                clipboard
+                                    .set_text(self.labels[LABEL_TITLES[i]].clone())
+                                    .unwrap();
+                                self.labels.notification = format!("{} copied!", LABEL_TITLES[i]);
+                            } else {
+                                self.labels.notification = String::from("Can't find clipboard!");
+                            }
+                        }
+                    }
+                }
+            }
+            MouseEventKind::ScrollUp => {
+                let bytes_per_line = self.display.comp_layouts.bytes_per_line;
+
+                // Scroll up a line in the viewport without changing cursor.
+                self.data.start_address = self.data.start_address.saturating_sub(bytes_per_line);
+            }
+            MouseEventKind::ScrollDown => {
+                let bytes_per_line = self.display.comp_layouts.bytes_per_line;
+                let lines_per_screen = self.display.comp_layouts.lines_per_screen;
+
+                let content_lines = self.data.contents.len() / bytes_per_line + 1;
+                let start_row = self.data.start_address / bytes_per_line;
+
+                // Scroll down a line in the viewport without changing cursor.
+                // Until the viewport contains the last page of content.
+                if start_row + lines_per_screen < content_lines {
+                    self.data.start_address =
+                        self.data.start_address.saturating_add(bytes_per_line);
+                }
+            }
+            _ => {}
+        }
     }
 }
