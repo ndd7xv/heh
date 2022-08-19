@@ -180,7 +180,10 @@ impl Application {
                     }
                     KeyCode::End => {
                         let bytes_per_line = self.display.comp_layouts.bytes_per_line;
-                        self.offset += bytes_per_line - 1 - self.offset % bytes_per_line;
+                        self.offset = cmp::min(
+                            self.offset + (bytes_per_line - 1 - self.offset % bytes_per_line),
+                            self.contents.len() - 1,
+                        );
                         self.offset_change_epilogue();
 
                         if self.focused_window == FocusedWindow::Hex
