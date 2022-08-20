@@ -174,8 +174,8 @@ impl Application {
                         self.offset = self.offset / bytes_per_line * bytes_per_line;
                         self.offset_change_epilogue();
 
-                        if self.focused_window == FocusedWindow::Hex && self.nibble == Nibble::End {
-                            self.nibble.toggle();
+                        if self.focused_window == FocusedWindow::Hex {
+                            self.nibble = Nibble::Beginning;
                         }
                     }
                     KeyCode::End => {
@@ -186,10 +186,8 @@ impl Application {
                         );
                         self.offset_change_epilogue();
 
-                        if self.focused_window == FocusedWindow::Hex
-                            && self.nibble == Nibble::Beginning
-                        {
-                            self.nibble.toggle();
+                        if self.focused_window == FocusedWindow::Hex {
+                            self.nibble = Nibble::End;
                         }
                     }
 
