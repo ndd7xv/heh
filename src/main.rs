@@ -1,5 +1,6 @@
-use std::error::Error;
-use std::fs::OpenOptions;
+use std::{error::Error, fs::OpenOptions, io, process};
+
+use crossterm::tty::IsTty;
 
 use app::Application;
 
@@ -50,6 +51,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         .read(true)
         .write(true)
         .open(matches.get_one::<String>("FILE").unwrap())?;
+
+    if !io::stdout().is_tty() {
+        eprintln!("Stdout is not a TTY device.");
+        process::exit(1);
+    }
 
     let mut app = Application::new(file)?;
     app.run()?;
