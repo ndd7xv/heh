@@ -69,9 +69,7 @@ impl Index<&str> for LabelHandler {
 
 impl LabelHandler {
     pub(crate) fn new(bytes: &[u8]) -> Self {
-        let mut labels = LabelHandler {
-            ..Default::default()
-        };
+        let mut labels = LabelHandler { ..Default::default() };
         labels.update_stream_length(8);
         labels.update_all(bytes);
         labels.offset = String::from("0x0");
@@ -155,18 +153,12 @@ impl LabelHandler {
             .collect();
     }
     fn update_octal(&mut self, bytes: &[u8]) {
-        self.octal = bytes
-            .iter()
-            .map(|byte| format!("{byte:03o}"))
-            .collect::<Vec<String>>()
-            .join(" ");
+        self.octal =
+            bytes.iter().map(|byte| format!("{byte:03o}")).collect::<Vec<String>>().join(" ");
     }
     fn update_hexadecimal(&mut self, bytes: &[u8]) {
-        self.hexadecimal = bytes
-            .iter()
-            .map(|byte| format!("{byte:02X}"))
-            .collect::<Vec<String>>()
-            .join(" ");
+        self.hexadecimal =
+            bytes.iter().map(|byte| format!("{byte:02X}")).collect::<Vec<String>>().join(" ");
     }
 }
 

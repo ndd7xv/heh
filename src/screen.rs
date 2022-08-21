@@ -70,11 +70,7 @@ impl ScreenHandler {
     }
     pub(crate) fn teardown(&mut self) -> Result<(), Box<dyn Error>> {
         disable_raw_mode()?;
-        execute!(
-            self.terminal.backend_mut(),
-            LeaveAlternateScreen,
-            DisableMouseCapture
-        )?;
+        execute!(self.terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
         self.terminal.show_cursor()?;
         Ok(())
     }
@@ -333,11 +329,8 @@ impl ScreenHandler {
             // Render Info
             for (i, label) in self.comp_layouts.labels.iter().enumerate() {
                 f.render_widget(
-                    Paragraph::new(labels[LABEL_TITLES[i]].clone()).block(
-                        Block::default()
-                            .borders(Borders::ALL)
-                            .title(LABEL_TITLES[i]),
-                    ),
+                    Paragraph::new(labels[LABEL_TITLES[i]].clone())
+                        .block(Block::default().borders(Borders::ALL).title(LABEL_TITLES[i])),
                     *label,
                 );
             }

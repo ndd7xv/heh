@@ -201,10 +201,7 @@ impl InputHandler for Editor {
                         Nibble::Beginning => {
                             let mut src = c.to_string();
                             src.push(
-                                format!("{:02X}", app.contents[app.offset])
-                                    .chars()
-                                    .last()
-                                    .unwrap(),
+                                format!("{:02X}", app.contents[app.offset]).chars().last().unwrap(),
                             );
                             let changed = u8::from_str_radix(src.as_str(), 16).unwrap();
                             app.contents[app.offset] = changed;
@@ -272,9 +269,7 @@ impl InputHandler for JumpToByte {
 
 impl JumpToByte {
     pub(crate) fn new() -> Self {
-        Self {
-            input: String::new(),
-        }
+        Self { input: String::new() }
     }
 }
 
@@ -296,9 +291,8 @@ fn adjust_offset(app: &mut AppData, display: &mut ScreenHandler, labels: &mut La
         display.comp_layouts.bytes_per_line * display.comp_layouts.lines_per_screen;
 
     if app.offset < app.start_address {
-        app.start_address = app
-            .start_address
-            .saturating_sub(display.comp_layouts.bytes_per_line * line_adjustment);
+        app.start_address =
+            app.start_address.saturating_sub(display.comp_layouts.bytes_per_line * line_adjustment);
     } else if app.offset >= app.start_address + (bytes_per_screen)
         && app.start_address + display.comp_layouts.bytes_per_line < app.contents.len()
     {
@@ -317,43 +311,34 @@ pub(crate) fn handle_key_input(
 ) -> Result<bool, Box<dyn Error>> {
     match key.code {
         KeyCode::Left => {
-            app.input_handler
-                .left(&mut app.data, &mut app.display, &mut app.labels);
+            app.input_handler.left(&mut app.data, &mut app.display, &mut app.labels);
         }
         KeyCode::Right => {
-            app.input_handler
-                .right(&mut app.data, &mut app.display, &mut app.labels);
+            app.input_handler.right(&mut app.data, &mut app.display, &mut app.labels);
         }
         KeyCode::Up => {
-            app.input_handler
-                .up(&mut app.data, &mut app.display, &mut app.labels);
+            app.input_handler.up(&mut app.data, &mut app.display, &mut app.labels);
         }
         KeyCode::Down => {
-            app.input_handler
-                .down(&mut app.data, &mut app.display, &mut app.labels);
+            app.input_handler.down(&mut app.data, &mut app.display, &mut app.labels);
         }
 
         KeyCode::Home => {
-            app.input_handler
-                .home(&mut app.data, &mut app.display, &mut app.labels);
+            app.input_handler.home(&mut app.data, &mut app.display, &mut app.labels);
         }
         KeyCode::End => {
-            app.input_handler
-                .end(&mut app.data, &mut app.display, &mut app.labels);
+            app.input_handler.end(&mut app.data, &mut app.display, &mut app.labels);
         }
 
         KeyCode::Backspace => {
-            app.input_handler
-                .backspace(&mut app.data, &mut app.display, &mut app.labels);
+            app.input_handler.backspace(&mut app.data, &mut app.display, &mut app.labels);
         }
         KeyCode::Delete => {
-            app.input_handler
-                .delete(&mut app.data, &mut app.display, &mut app.labels);
+            app.input_handler.delete(&mut app.data, &mut app.display, &mut app.labels);
         }
 
         KeyCode::Enter => {
-            app.input_handler
-                .enter(&mut app.data, &mut app.display, &mut app.labels);
+            app.input_handler.enter(&mut app.data, &mut app.display, &mut app.labels);
             app.input_handler = Box::from(app.last_input_handler);
         }
 
@@ -397,33 +382,28 @@ pub(crate) fn handle_character_input(
     } else if modifiers == KeyModifiers::ALT {
         match char {
             '=' => {
-                app.labels
-                    .update_stream_length(cmp::min(app.labels.get_stream_length() + 1, 64));
-                app.labels
-                    .update_streams(&app.data.contents[app.data.offset..]);
+                app.labels.update_stream_length(cmp::min(app.labels.get_stream_length() + 1, 64));
+                app.labels.update_streams(&app.data.contents[app.data.offset..]);
             }
             '-' => {
                 app.labels.update_stream_length(cmp::max(
                     app.labels.get_stream_length().saturating_sub(1),
                     0,
                 ));
-                app.labels
-                    .update_streams(&app.data.contents[app.data.offset..]);
+                app.labels.update_streams(&app.data.contents[app.data.offset..]);
             }
             _ => {}
         }
     } else if modifiers | KeyModifiers::NONE | KeyModifiers::SHIFT
         == KeyModifiers::NONE | KeyModifiers::SHIFT
     {
-        app.input_handler
-            .char(&mut app.data, &mut app.display, &mut app.labels, char);
+        app.input_handler.char(&mut app.data, &mut app.display, &mut app.labels, char);
     }
     Ok(true)
 }
 pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
     let component =
-        app.display
-            .identify_clicked_component(mouse.row, mouse.column, app.input_handler.as_ref());
+        app.display.identify_clicked_component(mouse.row, mouse.column, app.input_handler.as_ref());
     match mouse.kind {
         MouseEventKind::Down(MouseButton::Left) => {
             app.data.last_click = component;
@@ -444,9 +424,7 @@ pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
                     if app.data.last_click == component {
                         // Put string into clipboard
                         if let Some(clipboard) = app.data.clipboard.as_mut() {
-                            clipboard
-                                .set_text(app.labels[LABEL_TITLES[i]].clone())
-                                .unwrap();
+                            clipboard.set_text(app.labels[LABEL_TITLES[i]].clone()).unwrap();
                             app.labels.notification = format!("{} copied!", LABEL_TITLES[i]);
                         } else {
                             app.labels.notification = String::from("Can't find clipboard!");

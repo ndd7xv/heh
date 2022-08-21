@@ -1,19 +1,12 @@
-use std::{
-    error::Error,
-    fs::File,
-    io::{Read},
-    process,
-};
+use std::{error::Error, fs::File, io::Read, process};
 
-use crossterm::event::{
-    self, Event,
-};
+use crossterm::event::{self, Event};
 
 use arboard::Clipboard;
 
 use crate::{
     input::{self, Editor, InputHandler},
-    label::{LabelHandler},
+    label::LabelHandler,
     screen::{
         ClickedComponent::{self, Unclickable},
         ScreenHandler,
@@ -77,8 +70,7 @@ pub(crate) struct Application {
 impl Application {
     pub(crate) fn new(mut file: File) -> Result<Application, Box<dyn Error>> {
         let mut contents = Vec::new();
-        file.read_to_end(&mut contents)
-            .expect("Reading the contents of the file was interrupted.");
+        file.read_to_end(&mut contents).expect("Reading the contents of the file was interrupted.");
         if contents.is_empty() {
             eprintln!("heh does not support editing empty files");
             process::exit(1);
@@ -116,8 +108,7 @@ impl Application {
         Ok(())
     }
     fn render_display(&mut self) -> Result<(), Box<dyn Error>> {
-        self.display
-            .render(&self.data, &self.labels, self.input_handler.as_ref())?;
+        self.display.render(&self.data, &self.labels, self.input_handler.as_ref())?;
         Ok(())
     }
     fn handle_input(&mut self) -> Result<bool, Box<dyn Error>> {
