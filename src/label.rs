@@ -1,3 +1,5 @@
+//! Labels in the bottom half of the terminal UI that provide information based on cursor position.
+
 #![allow(clippy::cast_possible_wrap)]
 use std::ops::Index;
 
@@ -22,19 +24,19 @@ pub(crate) static LABEL_TITLES: [&str; 16] = [
 
 #[derive(Default)]
 pub(crate) struct LabelHandler {
-    pub(crate) signed_eight: String,
-    pub(crate) signed_sixteen: String,
-    pub(crate) signed_thirtytwo: String,
-    pub(crate) signed_sixtyfour: String,
-    pub(crate) unsigned_eight: String,
-    pub(crate) unsigned_sixteen: String,
-    pub(crate) unsigned_thirtytwo: String,
-    pub(crate) unsigned_sixtyfour: String,
-    pub(crate) float_thirtytwo: String,
-    pub(crate) float_sixtyfour: String,
-    pub(crate) binary: String,
-    pub(crate) octal: String,
-    pub(crate) hexadecimal: String,
+    signed_eight: String,
+    signed_sixteen: String,
+    signed_thirtytwo: String,
+    signed_sixtyfour: String,
+    unsigned_eight: String,
+    unsigned_sixteen: String,
+    unsigned_thirtytwo: String,
+    unsigned_sixtyfour: String,
+    float_thirtytwo: String,
+    float_sixtyfour: String,
+    binary: String,
+    octal: String,
+    hexadecimal: String,
     stream_length: usize,
     stream_length_string: String,
     pub(crate) offset: String,
@@ -69,7 +71,7 @@ impl Index<&str> for LabelHandler {
 
 impl LabelHandler {
     pub(crate) fn new(bytes: &[u8]) -> Self {
-        let mut labels = LabelHandler { ..Default::default() };
+        let mut labels = Self { ..Default::default() };
         labels.update_stream_length(8);
         labels.update_all(bytes);
         labels.offset = String::from("0x0");
@@ -110,7 +112,7 @@ impl LabelHandler {
         self.stream_length = length;
         self.stream_length_string = self.stream_length.to_string();
     }
-    pub(crate) fn get_stream_length(&self) -> usize {
+    pub(crate) const fn get_stream_length(&self) -> usize {
         self.stream_length
     }
     fn update_signed_eight(&mut self, bytes: &[u8]) {

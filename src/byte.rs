@@ -1,3 +1,5 @@
+//! Determines how a byte is colored and displayed.
+
 use tui::style::Color;
 pub(crate) enum ByteCategory {
     Null,

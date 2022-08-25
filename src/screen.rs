@@ -1,3 +1,5 @@
+//! In charge of calculating dimensions and displaying everything.
+
 use std::{
     cmp,
     error::Error,
@@ -21,8 +23,8 @@ use tui::{
 
 use crate::{
     app::{AppData, Nibble},
-    input::{FocusedWindow, InputHandler},
     label::{LabelHandler, LABEL_TITLES},
+    windows::{FocusedWindow, KeyHandler},
 };
 
 use crate::byte::{as_str, get_color};
@@ -57,7 +59,7 @@ impl ScreenHandler {
     pub(crate) fn new() -> Result<Self, Box<dyn Error>> {
         let terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
         let terminal_size = terminal.size()?;
-        Ok(ScreenHandler {
+        Ok(Self {
             terminal,
             terminal_size,
             comp_layouts: Self::calculate_dimensions(terminal_size),
@@ -78,7 +80,7 @@ impl ScreenHandler {
         &self,
         row: u16,
         col: u16,
-        window: &dyn InputHandler,
+        window: &dyn KeyHandler,
     ) -> ClickedComponent {
         let click = Rect::new(col, row, 0, 0);
         let popup_enabled = window.is_focusing(FocusedWindow::JumpToByte);
@@ -249,11 +251,15 @@ impl ScreenHandler {
 
         (address_text.into(), hex_text.into(), ascii_text.into())
     }
+
+    /// Display the addresses, editors, labels, and popups based off of the specifications of
+    /// [`ComponentLayouts`], defined by
+    /// [`calculate_dimensions`](ScreenHandler::calculate_dimensions).
     pub(crate) fn render(
         &mut self,
         app_info: &AppData,
         labels: &LabelHandler,
-        window: &dyn InputHandler,
+        window: &dyn KeyHandler,
     ) -> Result<(), Box<dyn Error>> {
         self.terminal.draw(|f| {
             // We check if we need to recompute the terminal size in the case that the saved off variable
@@ -262,7 +268,7 @@ impl ScreenHandler {
             let size = f.size();
             if size != self.terminal_size {
                 self.terminal_size = size;
-                self.comp_layouts = ScreenHandler::calculate_dimensions(self.terminal_size);
+                self.comp_layouts = Self::calculate_dimensions(self.terminal_size);
             }
 
             // Check if terminal is large enough
@@ -335,7 +341,7 @@ impl ScreenHandler {
                 );
             }
 
-            // Render Popup
+            // Render Popup - In the future, this should be able to handle different types of popups.
             if window.is_focusing(FocusedWindow::JumpToByte) {
                 f.render_widget(Clear, self.comp_layouts.popup);
                 f.render_widget(
