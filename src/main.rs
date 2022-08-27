@@ -1,3 +1,11 @@
+//! The HEx Helper is a cross-platform terminal UI used for modifying file data in hex or ASCII.
+//! It aims to replicate some of the look of [hexyl](https://github.com/sharkdp/hexyl) while
+//! functionaly acting like a terminal UI version of [GHex](https://wiki.gnome.org/Apps/Ghex).
+//!
+//! **heh is currently in alpha** - it's not ready to be used in any production manner. Notably, it
+//! does not warn users of quitting before saving, it does not store backups if killed or crashing,
+//! and there is no undo option after deleting a byte.
+
 use std::{error::Error, fs::OpenOptions, io, process};
 
 use crossterm::tty::IsTty;
@@ -6,8 +14,10 @@ use app::Application;
 
 mod app;
 mod byte;
+mod input;
 mod label;
 mod screen;
+mod windows;
 
 use clap::{arg, command};
 
@@ -40,6 +50,7 @@ Left-clicking on the ASCII or hex table will focus it.
 
 Zooming in and out will change the size of the components.";
 
+/// Opens the specified file, creates a new application and runs it!
 fn main() -> Result<(), Box<dyn Error>> {
     let matches = command!()
         .about(ABOUT)

@@ -1,5 +1,6 @@
-use tui::style::Color;
+//! Determines how a byte is colored and displayed.
 
+use tui::style::Color;
 pub(crate) enum ByteCategory {
     Null,
     AsciiPrintable,
@@ -28,19 +29,19 @@ pub(crate) fn category(byte: u8) -> ByteCategory {
     }
 }
 
-pub(crate) fn as_str(byte: &u8) -> String {
-    match category(*byte) {
+pub(crate) fn as_str(byte: u8) -> String {
+    match category(byte) {
         ByteCategory::Null => "0".to_string(),
-        ByteCategory::AsciiPrintable => (*byte as char).to_string(),
-        ByteCategory::AsciiWhitespace if *byte == 0x20 => " ".to_string(),
+        ByteCategory::AsciiPrintable => (byte as char).to_string(),
+        ByteCategory::AsciiWhitespace if byte == 0x20 => " ".to_string(),
         ByteCategory::AsciiWhitespace => "_".to_string(),
         ByteCategory::AsciiOther => "•".to_string(),
         ByteCategory::NonAscii => "×".to_string(),
     }
 }
 
-pub(crate) fn get_color(byte: &u8) -> &'static Color {
-    match category(*byte) {
+pub(crate) fn get_color(byte: u8) -> &'static Color {
+    match category(byte) {
         ByteCategory::Null => &COLOR_NULL,
         ByteCategory::AsciiPrintable => &COLOR_ASCII_PRINTABLE,
         ByteCategory::AsciiWhitespace => &COLOR_ASCII_WHITESPACE,

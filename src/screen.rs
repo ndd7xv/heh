@@ -1,3 +1,5 @@
+//! In charge of calculating dimensions and displaying everything.
+
 use std::{
     cmp,
     error::Error,
@@ -20,8 +22,9 @@ use tui::{
 };
 
 use crate::{
-    app::{FocusedWindow, Nibble},
+    app::{AppData, Nibble},
     label::{LabelHandler, LABEL_TITLES},
+    windows::{FocusedWindow, KeyHandler},
 };
 
 use crate::byte::{as_str, get_color};
@@ -56,24 +59,20 @@ impl ScreenHandler {
     pub(crate) fn new() -> Result<Self, Box<dyn Error>> {
         let terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
         let terminal_size = terminal.size()?;
-        Ok(ScreenHandler {
+        Ok(Self {
             terminal,
             terminal_size,
             comp_layouts: Self::calculate_dimensions(terminal_size),
         })
     }
-    pub(crate) fn setup(&self) -> Result<(), Box<dyn Error>> {
+    pub(crate) fn setup() -> Result<(), Box<dyn Error>> {
         enable_raw_mode()?;
         execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
         Ok(())
     }
     pub(crate) fn teardown(&mut self) -> Result<(), Box<dyn Error>> {
         disable_raw_mode()?;
-        execute!(
-            self.terminal.backend_mut(),
-            LeaveAlternateScreen,
-            DisableMouseCapture
-        )?;
+        execute!(self.terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
         self.terminal.show_cursor()?;
         Ok(())
     }
@@ -81,10 +80,10 @@ impl ScreenHandler {
         &self,
         row: u16,
         col: u16,
-        focused_window: &FocusedWindow,
+        window: &dyn KeyHandler,
     ) -> ClickedComponent {
         let click = Rect::new(col, row, 0, 0);
-        let popup_enabled = matches!(focused_window, FocusedWindow::Popup(_));
+        let popup_enabled = window.is_focusing(FocusedWindow::JumpToByte);
         if popup_enabled && self.comp_layouts.popup.union(click) == self.comp_layouts.popup {
             return ClickedComponent::Unclickable;
         } else if self.comp_layouts.hex.union(click) == self.comp_layouts.hex {
@@ -134,7 +133,7 @@ impl ScreenHandler {
                         Constraint::Ratio(1, 4),
                     ])
                     .split(label),
-            )
+            );
         }
 
         // Calculate popup dimensions
@@ -186,7 +185,7 @@ impl ScreenHandler {
                 Spans::from(
                     chunk
                         .iter()
-                        .map(|byte| {
+                        .map(|&byte| {
                             Span::styled(
                                 format!("{byte:02X?} "),
                                 Style::default().fg(*get_color(byte)),
@@ -205,7 +204,7 @@ impl ScreenHandler {
                 Spans::from(
                     chunk
                         .iter()
-                        .map(|byte| {
+                        .map(|&byte| {
                             Span::styled(as_str(byte), Style::default().fg(*get_color(byte)))
                         })
                         .collect::<Vec<Span>>(),
@@ -223,9 +222,9 @@ impl ScreenHandler {
             hex_text[cursor_row - start_row].0[cursor_col] = Span::styled(
                 byte.next().unwrap().to_string(),
                 if nibble == &Nibble::Beginning {
-                    Style::default().fg(*get_color(&cursor_byte)).bg(COLOR_NULL)
+                    Style::default().fg(*get_color(cursor_byte)).bg(COLOR_NULL)
                 } else {
-                    Style::default().fg(*get_color(&cursor_byte))
+                    Style::default().fg(*get_color(cursor_byte))
                 },
             );
             hex_text[cursor_row - start_row].0.insert(
@@ -233,9 +232,9 @@ impl ScreenHandler {
                 Span::styled(
                     byte.next().unwrap().to_string(),
                     if nibble == &Nibble::End {
-                        Style::default().fg(*get_color(&cursor_byte)).bg(COLOR_NULL)
+                        Style::default().fg(*get_color(cursor_byte)).bg(COLOR_NULL)
                     } else {
-                        Style::default().fg(*get_color(&cursor_byte))
+                        Style::default().fg(*get_color(cursor_byte))
                     },
                 ),
             );
@@ -245,21 +244,22 @@ impl ScreenHandler {
 
             // Highlight the selected byte in the ASCII table
             ascii_text[cursor_row - start_row].0[cursor_col] = Span::styled(
-                as_str(&cursor_byte),
-                Style::default().fg(*get_color(&cursor_byte)).bg(COLOR_NULL),
+                as_str(cursor_byte),
+                Style::default().fg(*get_color(cursor_byte)).bg(COLOR_NULL),
             );
         }
 
         (address_text.into(), hex_text.into(), ascii_text.into())
     }
+
+    /// Display the addresses, editors, labels, and popups based off of the specifications of
+    /// [`ComponentLayouts`], defined by
+    /// [`calculate_dimensions`](ScreenHandler::calculate_dimensions).
     pub(crate) fn render(
         &mut self,
-        contents: &[u8],
-        start_address: usize,
-        offset: usize,
+        app_info: &AppData,
         labels: &LabelHandler,
-        focused_window: &FocusedWindow,
-        nibble: &Nibble,
+        window: &dyn KeyHandler,
     ) -> Result<(), Box<dyn Error>> {
         self.terminal.draw(|f| {
             // We check if we need to recompute the terminal size in the case that the saved off variable
@@ -268,7 +268,7 @@ impl ScreenHandler {
             let size = f.size();
             if size != self.terminal_size {
                 self.terminal_size = size;
-                self.comp_layouts = ScreenHandler::calculate_dimensions(self.terminal_size);
+                self.comp_layouts = Self::calculate_dimensions(self.terminal_size);
             }
 
             // Check if terminal is large enough
@@ -289,12 +289,12 @@ impl ScreenHandler {
             }
 
             let (address_text, hex_text, ascii_text) = Self::generate_text(
-                contents,
-                start_address,
-                offset,
+                &app_info.contents,
+                app_info.start_address,
+                app_info.offset,
                 self.comp_layouts.bytes_per_line,
                 self.comp_layouts.lines_per_screen,
-                nibble,
+                &app_info.nibble,
             );
 
             // Render Line Numbers
@@ -308,7 +308,7 @@ impl ScreenHandler {
             f.render_widget(
                 Paragraph::new(hex_text).block(
                     Block::default().borders(Borders::ALL).title("Hex").style(
-                        if *focused_window == FocusedWindow::Hex {
+                        if window.is_focusing(FocusedWindow::Hex) {
                             Style::default().fg(Color::Yellow)
                         } else {
                             Style::default()
@@ -322,7 +322,7 @@ impl ScreenHandler {
             f.render_widget(
                 Paragraph::new(ascii_text).block(
                     Block::default().borders(Borders::ALL).title("ASCII").style(
-                        if *focused_window == FocusedWindow::Ascii {
+                        if window.is_focusing(FocusedWindow::Ascii) {
                             Style::default().fg(Color::Yellow)
                         } else {
                             Style::default()
@@ -335,21 +335,18 @@ impl ScreenHandler {
             // Render Info
             for (i, label) in self.comp_layouts.labels.iter().enumerate() {
                 f.render_widget(
-                    Paragraph::new(labels[LABEL_TITLES[i]].clone()).block(
-                        Block::default()
-                            .borders(Borders::ALL)
-                            .title(LABEL_TITLES[i]),
-                    ),
+                    Paragraph::new(labels[LABEL_TITLES[i]].clone())
+                        .block(Block::default().borders(Borders::ALL).title(LABEL_TITLES[i])),
                     *label,
                 );
             }
 
-            // Render Popup
-            if let FocusedWindow::Popup(popup_data) = focused_window {
+            // Render Popup - In the future, this should be able to handle different types of popups.
+            if window.is_focusing(FocusedWindow::JumpToByte) {
                 f.render_widget(Clear, self.comp_layouts.popup);
                 f.render_widget(
                     Paragraph::new(Span::styled(
-                        &popup_data.input,
+                        window.get_user_input(),
                         Style::default().fg(Color::White),
                     ))
                     .block(
