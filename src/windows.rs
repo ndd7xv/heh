@@ -1,6 +1,6 @@
 //! The components that implement [`KeyHandler`], which allow them to uniquely react to user input.
 
-use std::{any::Any, cmp};
+use std::cmp;
 
 use crate::{
     app::{AppData, Nibble},
@@ -16,9 +16,6 @@ const DEFAULT_INPUT: &str = "";
 /// example, pressing enter should not modify the opened file in any form, but doing so while the
 /// "Jump To Byte" popup is focused should attempt to move the cursor to the inputted byte.
 pub(crate) trait KeyHandler {
-    /// Downcasts a dynamic [`KeyHandler`] into a specific one.
-    fn as_any(&self) -> &dyn Any;
-
     /// Checks if the current [`KeyHandler`] is a certain [`FocusedWindow`].
     fn is_focusing(&self, window_type: FocusedWindow) -> bool;
 
@@ -38,6 +35,11 @@ pub(crate) trait KeyHandler {
     fn get_user_input(&self) -> &str {
         DEFAULT_INPUT
     }
+
+    /// Returns the dimensions of to be used in displaying a popup. Returns None if an editor.
+    fn dimensions(&self) -> Option<(u16, u16)> {
+        None
+    }
 }
 
 /// An enumeration of all the potential components that could be focused. Used to identify which
@@ -47,6 +49,7 @@ pub enum FocusedWindow {
     Ascii,
     Hex,
     JumpToByte,
+    UnsavedChanges,
 }
 
 /// The main windows that allow users to edit HEX and ASCII.
@@ -56,20 +59,7 @@ pub enum Editor {
     Hex,
 }
 
-/// A window that can accept input and attempt to move the cursor to the inputted byte.
-///
-/// This can be opened by pressing `CNTRLj`.
-///
-/// The input is either parsed as hexadecimal if it is preceded with "0x", or decimal if not.
-#[derive(PartialEq, Eq)]
-pub struct JumpToByte {
-    pub input: String,
-}
-
 impl KeyHandler for Editor {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn is_focusing(&self, window_type: FocusedWindow) -> bool {
         match self {
             Self::Ascii => window_type == FocusedWindow::Ascii,
@@ -231,10 +221,17 @@ impl KeyHandler for Editor {
     }
 }
 
+/// A window that can accept input and attempt to move the cursor to the inputted byte.
+///
+/// This can be opened by pressing `CNTRLj`.
+///
+/// The input is either parsed as hexadecimal if it is preceded with "0x", or decimal if not.
+#[derive(PartialEq, Eq)]
+pub struct JumpToByte {
+    pub input: String,
+}
+
 impl KeyHandler for JumpToByte {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn is_focusing(&self, window_type: FocusedWindow) -> bool {
         window_type == FocusedWindow::JumpToByte
     }
@@ -265,11 +262,44 @@ impl KeyHandler for JumpToByte {
             labels.notification = format!("Error: {:?}", new_offset.unwrap_err());
         }
     }
+    fn dimensions(&self) -> Option<(u16, u16)> {
+        Some((50, 3))
+    }
 }
 
 impl JumpToByte {
     pub fn new() -> Self {
         Self { input: String::new() }
+    }
+}
+
+pub struct UnsavedChanges {
+    pub should_quit: bool,
+}
+
+impl KeyHandler for UnsavedChanges {
+    fn is_focusing(&self, window_type: FocusedWindow) -> bool {
+        window_type == FocusedWindow::UnsavedChanges
+    }
+    fn left(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {
+        if !self.should_quit {
+            self.should_quit = true;
+        }
+    }
+    fn right(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {
+        if self.should_quit {
+            self.should_quit = false;
+        }
+    }
+    fn get_user_input(&self) -> &str {
+        if self.should_quit {
+            "yes"
+        } else {
+            "no"
+        }
+    }
+    fn dimensions(&self) -> Option<(u16, u16)> {
+        Some((50, 5))
     }
 }
 

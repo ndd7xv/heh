@@ -3,7 +3,9 @@
 //! The application holds the main components of the other modules, like the [`ScreenHandler`],
 //! [`LabelHandler`], and input handling, as well as the state data that each of them need.
 
-use std::{error::Error, fs::File, io::Read, process};
+use std::{
+    collections::hash_map::DefaultHasher, error::Error, fs::File, hash::Hasher, io::Read, process,
+};
 
 use crossterm::event::{self, Event};
 
@@ -45,6 +47,9 @@ pub(crate) struct AppData {
 
     /// The file content.
     pub(crate) contents: Vec<u8>,
+
+    /// The hashed content, used for checking if anything has been changed.
+    pub(crate) hashed_contents: u64,
 
     /// Offset of the first content byte that is visible on the screen.
     pub(crate) start_address: usize,
@@ -95,6 +100,9 @@ impl Application {
             eprintln!("heh does not support editing empty files");
             process::exit(1);
         }
+        let mut hasher = DefaultHasher::new();
+        hasher.write(&contents);
+        let hashed_contents = hasher.finish();
         let mut labels = LabelHandler::new(&contents);
         let clipboard = Clipboard::new().ok();
         if clipboard.is_none() {
@@ -104,6 +112,7 @@ impl Application {
             data: AppData {
                 file,
                 contents,
+                hashed_contents,
                 start_address: 0,
                 offset: 0,
                 nibble: Nibble::Beginning,

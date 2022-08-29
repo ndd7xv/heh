@@ -5,7 +5,9 @@
 
 use std::{
     cmp,
+    collections::hash_map::DefaultHasher,
     error::Error,
+    hash::Hasher,
     io::{Seek, SeekFrom, Write},
 };
 
@@ -15,7 +17,7 @@ use crate::{
     app::Application,
     label::LABEL_TITLES,
     screen::ClickedComponent::{AsciiTable, HexTable, Label, Unclickable},
-    windows::{Editor, FocusedWindow, JumpToByte},
+    windows::{Editor, FocusedWindow, JumpToByte, UnsavedChanges},
 };
 
 /// Wrapper function that calls the corresponding [`KeyHandler`](crate::windows::KeyHandler) methods of
@@ -54,8 +56,16 @@ pub(crate) fn handle_key_input(
         KeyCode::Delete => {
             app.key_handler.delete(&mut app.data, &mut app.display, &mut app.labels);
         }
+        KeyCode::Esc => {
+            app.key_handler = Box::from(app.data.editor);
+        }
 
         KeyCode::Enter => {
+            if app.key_handler.is_focusing(FocusedWindow::UnsavedChanges)
+                && app.key_handler.get_user_input() == "yes"
+            {
+                return Ok(false);
+            }
             app.key_handler.enter(&mut app.data, &mut app.display, &mut app.labels);
             app.key_handler = Box::from(app.data.editor);
         }
@@ -80,19 +90,29 @@ pub(crate) fn handle_character_input(
                 if app.key_handler.is_focusing(FocusedWindow::JumpToByte) {
                     app.key_handler = Box::from(app.data.editor);
                 } else {
-                    app.data.editor = *app
-                        .key_handler
-                        .as_any()
-                        .downcast_ref()
-                        .expect("The current window wasn't an editor");
                     app.key_handler = Box::from(JumpToByte::new());
                 }
             }
-            'q' => return Ok(false),
+            'q' => {
+                if !app.key_handler.is_focusing(FocusedWindow::UnsavedChanges) {
+                    let mut hasher = DefaultHasher::new();
+                    hasher.write(&app.data.contents);
+                    if hasher.finish() == app.data.hashed_contents {
+                        return Ok(false);
+                    } else {
+                        app.key_handler = Box::from(UnsavedChanges { should_quit: false });
+                    }
+                }
+            }
             's' => {
                 app.data.file.seek(SeekFrom::Start(0))?;
                 app.data.file.write_all(&app.data.contents)?;
                 app.data.file.set_len(app.data.contents.len() as u64)?;
+
+                let mut hasher = DefaultHasher::new();
+                hasher.write(&app.data.contents);
+                app.data.hashed_contents = hasher.finish();
+
                 app.labels.notification = String::from("Saved!");
             }
             _ => {}
@@ -128,9 +148,11 @@ pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
             match app.data.last_click {
                 HexTable => {
                     app.key_handler = Box::from(Editor::Hex);
+                    app.data.editor = Editor::Hex;
                 }
                 AsciiTable => {
                     app.key_handler = Box::from(Editor::Ascii);
+                    app.data.editor = Editor::Ascii;
                 }
                 Label(_) | Unclickable => {}
             }

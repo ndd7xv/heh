@@ -15,7 +15,7 @@ use crossterm::{
 use tui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
     widgets::{Block, Borders, Clear, Paragraph},
     Terminal,
@@ -24,7 +24,7 @@ use tui::{
 use crate::{
     app::{AppData, Nibble},
     label::{LabelHandler, LABEL_TITLES},
-    windows::{FocusedWindow, KeyHandler},
+    windows::{Editor, FocusedWindow, KeyHandler},
 };
 
 use crate::byte::{as_str, get_color};
@@ -62,7 +62,7 @@ impl ScreenHandler {
         Ok(Self {
             terminal,
             terminal_size,
-            comp_layouts: Self::calculate_dimensions(terminal_size),
+            comp_layouts: Self::calculate_dimensions(terminal_size, &Editor::Hex),
         })
     }
     pub(crate) fn setup() -> Result<(), Box<dyn Error>> {
@@ -83,7 +83,8 @@ impl ScreenHandler {
         window: &dyn KeyHandler,
     ) -> ClickedComponent {
         let click = Rect::new(col, row, 0, 0);
-        let popup_enabled = window.is_focusing(FocusedWindow::JumpToByte);
+        let popup_enabled =
+            !(window.is_focusing(FocusedWindow::Hex) || window.is_focusing(FocusedWindow::Ascii));
         if popup_enabled && self.comp_layouts.popup.union(click) == self.comp_layouts.popup {
             return ClickedComponent::Unclickable;
         } else if self.comp_layouts.hex.union(click) == self.comp_layouts.hex {
@@ -98,7 +99,7 @@ impl ScreenHandler {
         }
         ClickedComponent::Unclickable
     }
-    fn calculate_dimensions(frame: Rect) -> ComponentLayouts {
+    fn calculate_dimensions(frame: Rect, window: &dyn KeyHandler) -> ComponentLayouts {
         // Establish Constraints
         let sections = Layout::default()
             .direction(Direction::Vertical)
@@ -137,7 +138,7 @@ impl ScreenHandler {
         }
 
         // Calculate popup dimensions
-        let popup = popup_rect(cmp::max(45, frame.width / 2), 3, frame);
+        let popup = Self::calculate_popup_dimensions(frame, window);
 
         // Calculate bytes per line
         let bytes_per_line = ((editors[1].width - 2) / 3) as usize;
@@ -151,6 +152,13 @@ impl ScreenHandler {
             bytes_per_line,
             lines_per_screen,
             labels,
+        }
+    }
+    fn calculate_popup_dimensions(frame: Rect, window: &dyn KeyHandler) -> Rect {
+        if let Some(dimensions) = window.dimensions() {
+            popup_rect(dimensions, frame)
+        } else {
+            Rect::default()
         }
     }
     fn generate_text<'a>(
@@ -268,8 +276,9 @@ impl ScreenHandler {
             let size = f.size();
             if size != self.terminal_size {
                 self.terminal_size = size;
-                self.comp_layouts = Self::calculate_dimensions(self.terminal_size);
+                self.comp_layouts = Self::calculate_dimensions(self.terminal_size, window);
             }
+            self.comp_layouts.popup = Self::calculate_popup_dimensions(self.terminal_size, window);
 
             // Check if terminal is large enough
             if self.terminal_size.width < 50 || self.terminal_size.height < 15 {
@@ -358,20 +367,63 @@ impl ScreenHandler {
                     self.comp_layouts.popup,
                 );
             }
+
+            if window.is_focusing(FocusedWindow::UnsavedChanges) {
+                let should_quit = window.get_user_input() == "yes";
+                let message = vec![
+                    Spans::from(Span::styled(
+                        "Are you sure you want to quit?",
+                        Style::default().fg(Color::White),
+                    )),
+                    Spans::from(Span::from("")),
+                    Spans::from(vec![
+                        Span::styled(
+                            "    Yes    ",
+                            if should_quit {
+                                Style::default()
+                            } else {
+                                Style::default().fg(Color::White)
+                            },
+                        ),
+                        Span::styled(
+                            "    No    ",
+                            if !should_quit {
+                                Style::default()
+                            } else {
+                                Style::default().fg(Color::White)
+                            },
+                        ),
+                    ]),
+                ];
+                f.render_widget(Clear, self.comp_layouts.popup);
+                f.render_widget(
+                    Paragraph::new(message).alignment(Alignment::Center).block(
+                        Block::default()
+                            .title(Span::styled(
+                                "You Have Unsaved Changes.",
+                                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                            ))
+                            .title_alignment(Alignment::Center)
+                            .borders(Borders::ALL)
+                            .style(Style::default().fg(Color::Yellow)),
+                    ),
+                    self.comp_layouts.popup,
+                );
+            }
         })?;
         Ok(())
     }
 }
 
 /// Generates the dimensions of an x by y popup that is centered in Rect r.
-fn popup_rect(x: u16, y: u16, r: Rect) -> Rect {
+fn popup_rect((x, y): (u16, u16), r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Length((r.height - y) / 2),
+                Constraint::Length(r.height.saturating_sub(y) / 2),
                 Constraint::Length(y),
-                Constraint::Min((r.height - y) / 2),
+                Constraint::Min(r.height.saturating_sub(y) / 2),
             ]
             .as_ref(),
         )
@@ -381,9 +433,9 @@ fn popup_rect(x: u16, y: u16, r: Rect) -> Rect {
         .direction(Direction::Horizontal)
         .constraints(
             [
-                Constraint::Min((r.width - x) / 2),
+                Constraint::Min(r.width.saturating_sub(x) / 2),
                 Constraint::Length(x),
-                Constraint::Min((r.width - x) / 2),
+                Constraint::Min(r.width.saturating_sub(x) / 2),
             ]
             .as_ref(),
         )
