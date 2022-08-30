@@ -15,7 +15,7 @@ use crossterm::{
 use tui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Color, Style},
     text::{Span, Spans, Text},
     widgets::{Block, Borders, Clear, Paragraph},
     Terminal,
@@ -24,7 +24,7 @@ use tui::{
 use crate::{
     app::{AppData, Nibble},
     label::{LabelHandler, LABEL_TITLES},
-    windows::{Editor, FocusedWindow, KeyHandler},
+    windows::{editor::Editor, FocusedWindow, KeyHandler},
 };
 
 use crate::byte::{as_str, get_color};
@@ -353,62 +353,12 @@ impl ScreenHandler {
             // Render Popup - In the future, this should be able to handle different types of popups.
             if window.is_focusing(FocusedWindow::JumpToByte) {
                 f.render_widget(Clear, self.comp_layouts.popup);
-                f.render_widget(
-                    Paragraph::new(Span::styled(
-                        window.get_user_input(),
-                        Style::default().fg(Color::White),
-                    ))
-                    .block(
-                        Block::default()
-                            .title("Jump to Byte:")
-                            .borders(Borders::ALL)
-                            .style(Style::default().fg(Color::Yellow)),
-                    ),
-                    self.comp_layouts.popup,
-                );
+                f.render_widget(window.widget(), self.comp_layouts.popup);
             }
 
             if window.is_focusing(FocusedWindow::UnsavedChanges) {
-                let should_quit = window.get_user_input() == "yes";
-                let message = vec![
-                    Spans::from(Span::styled(
-                        "Are you sure you want to quit?",
-                        Style::default().fg(Color::White),
-                    )),
-                    Spans::from(Span::from("")),
-                    Spans::from(vec![
-                        Span::styled(
-                            "    Yes    ",
-                            if should_quit {
-                                Style::default()
-                            } else {
-                                Style::default().fg(Color::White)
-                            },
-                        ),
-                        Span::styled(
-                            "    No    ",
-                            if !should_quit {
-                                Style::default()
-                            } else {
-                                Style::default().fg(Color::White)
-                            },
-                        ),
-                    ]),
-                ];
                 f.render_widget(Clear, self.comp_layouts.popup);
-                f.render_widget(
-                    Paragraph::new(message).alignment(Alignment::Center).block(
-                        Block::default()
-                            .title(Span::styled(
-                                "You Have Unsaved Changes.",
-                                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-                            ))
-                            .title_alignment(Alignment::Center)
-                            .borders(Borders::ALL)
-                            .style(Style::default().fg(Color::Yellow)),
-                    ),
-                    self.comp_layouts.popup,
-                );
+                f.render_widget(window.widget(), self.comp_layouts.popup);
             }
         })?;
         Ok(())

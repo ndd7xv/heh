@@ -18,7 +18,7 @@ use crate::{
         ClickedComponent::{self, Unclickable},
         ScreenHandler,
     },
-    windows::{Editor, KeyHandler},
+    windows::{editor::Editor, KeyHandler},
 };
 
 /// Enum that represent grouping of 4 bits in a byte.

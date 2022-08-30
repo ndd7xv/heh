@@ -17,7 +17,10 @@ use crate::{
     app::Application,
     label::LABEL_TITLES,
     screen::ClickedComponent::{AsciiTable, HexTable, Label, Unclickable},
-    windows::{Editor, FocusedWindow, JumpToByte, UnsavedChanges},
+    windows::{
+        editor::Editor, jump_to_byte::JumpToByte, unsaved_changes::UnsavedChanges, FocusedWindow,
+        PopupOutput,
+    },
 };
 
 /// Wrapper function that calls the corresponding [`KeyHandler`](crate::windows::KeyHandler) methods of
@@ -62,7 +65,7 @@ pub(crate) fn handle_key_input(
 
         KeyCode::Enter => {
             if app.key_handler.is_focusing(FocusedWindow::UnsavedChanges)
-                && app.key_handler.get_user_input() == "yes"
+                && app.key_handler.get_user_input() == PopupOutput::Boolean(true)
             {
                 return Ok(false);
             }
@@ -99,9 +102,8 @@ pub(crate) fn handle_character_input(
                     hasher.write(&app.data.contents);
                     if hasher.finish() == app.data.hashed_contents {
                         return Ok(false);
-                    } else {
-                        app.key_handler = Box::from(UnsavedChanges { should_quit: false });
                     }
+                    app.key_handler = Box::from(UnsavedChanges::new());
                 }
             }
             's' => {

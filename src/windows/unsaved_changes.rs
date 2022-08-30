@@ -1,0 +1,79 @@
+use tui::{
+    layout::Alignment,
+    style::{Color, Modifier, Style},
+    text::{Span, Spans},
+    widgets::{Block, Borders, Paragraph},
+};
+
+use crate::{app::AppData, label::LabelHandler, screen::ScreenHandler};
+
+use super::{FocusedWindow, KeyHandler, PopupOutput};
+
+pub struct UnsavedChanges {
+    pub should_quit: bool,
+}
+
+impl KeyHandler for UnsavedChanges {
+    fn is_focusing(&self, window_type: FocusedWindow) -> bool {
+        window_type == FocusedWindow::UnsavedChanges
+    }
+    fn left(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {
+        if !self.should_quit {
+            self.should_quit = true;
+        }
+    }
+    fn right(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {
+        if self.should_quit {
+            self.should_quit = false;
+        }
+    }
+    fn get_user_input(&self) -> PopupOutput {
+        PopupOutput::Boolean(self.should_quit)
+    }
+    fn dimensions(&self) -> Option<(u16, u16)> {
+        Some((50, 5))
+    }
+    fn widget(&self) -> Paragraph {
+        let message = vec![
+            Spans::from(Span::styled(
+                "Are you sure you want to quit?",
+                Style::default().fg(Color::White),
+            )),
+            Spans::from(Span::from("")),
+            Spans::from(vec![
+                Span::styled(
+                    "    Yes    ",
+                    if self.should_quit {
+                        Style::default()
+                    } else {
+                        Style::default().fg(Color::White)
+                    },
+                ),
+                Span::styled(
+                    "    No    ",
+                    if self.should_quit {
+                        Style::default().fg(Color::White)
+                    } else {
+                        Style::default()
+                    },
+                ),
+            ]),
+        ];
+        Paragraph::new(message).alignment(Alignment::Center).block(
+            Block::default()
+                .title(Span::styled(
+                    "You Have Unsaved Changes.",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ))
+                .title_alignment(Alignment::Center)
+                .borders(Borders::ALL)
+                .style(Style::default().fg(Color::Yellow)),
+        )
+    }
+}
+
+impl UnsavedChanges {
+    pub fn new() -> Self {
+        UnsavedChanges { should_quit: false }
+    }
+}
