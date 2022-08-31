@@ -7,15 +7,15 @@ use tui::{
 
 use crate::{app::AppData, label::LabelHandler, screen::ScreenHandler};
 
-use super::{FocusedWindow, KeyHandler, PopupOutput};
+use super::{KeyHandler, PopupOutput, Window};
 
-pub struct UnsavedChanges {
-    pub should_quit: bool,
+pub(crate) struct UnsavedChanges {
+    pub(crate) should_quit: bool,
 }
 
 impl KeyHandler for UnsavedChanges {
-    fn is_focusing(&self, window_type: FocusedWindow) -> bool {
-        window_type == FocusedWindow::UnsavedChanges
+    fn is_focusing(&self, window_type: Window) -> bool {
+        window_type == Window::UnsavedChanges
     }
     fn left(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {
         if !self.should_quit {
@@ -73,7 +73,7 @@ impl KeyHandler for UnsavedChanges {
 }
 
 impl UnsavedChanges {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         UnsavedChanges { should_quit: false }
     }
 }

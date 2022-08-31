@@ -9,19 +9,22 @@ use tui::widgets::Paragraph;
 
 use crate::{app::AppData, label::LabelHandler, screen::ScreenHandler};
 
-/// An enumeration of all the potential components that could be focused. Used to identify which
-/// component is currently focused in the `Application`'s input field.
-#[derive(PartialEq, Eq)]
-pub enum FocusedWindow {
+/// An enumeration of all the potential components that can be clicked. Used to identify which
+/// component has been most recently clicked, and is also used to detmine which window is
+/// focused in the `Application`'s input field.
+#[derive(PartialEq, Eq, Copy, Clone)]
+pub(crate) enum Window {
     Ascii,
     Hex,
     JumpToByte,
     UnsavedChanges,
+    Label(usize),
+    Unhandled,
 }
 
 /// Represents the possible output of a variety of different popups.
 #[derive(PartialEq, Eq)]
-pub enum PopupOutput<'a> {
+pub(crate) enum PopupOutput<'a> {
     Str(&'a str),
     Boolean(bool),
     NoOutput,
@@ -33,8 +36,8 @@ pub enum PopupOutput<'a> {
 /// example, pressing enter should not modify the opened file in any form, but doing so while the
 /// "Jump To Byte" popup is focused should attempt to move the cursor to the inputted byte.
 pub(crate) trait KeyHandler {
-    /// Checks if the current [`KeyHandler`] is a certain [`FocusedWindow`].
-    fn is_focusing(&self, window_type: FocusedWindow) -> bool;
+    /// Checks if the current [`KeyHandler`] is a certain [`Window`].
+    fn is_focusing(&self, window_type: Window) -> bool;
 
     // Methods that handle their respective keypresses.
     fn left(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}

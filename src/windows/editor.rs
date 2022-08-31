@@ -6,20 +6,20 @@ use crate::{
     screen::ScreenHandler,
 };
 
-use super::{adjust_offset, FocusedWindow, KeyHandler};
+use super::{adjust_offset, KeyHandler, Window};
 
 /// The main windows that allow users to edit HEX and ASCII.
 #[derive(PartialEq, Eq, Clone, Copy)]
-pub enum Editor {
+pub(crate) enum Editor {
     Ascii,
     Hex,
 }
 
 impl KeyHandler for Editor {
-    fn is_focusing(&self, window_type: FocusedWindow) -> bool {
+    fn is_focusing(&self, window_type: Window) -> bool {
         match self {
-            Self::Ascii => window_type == FocusedWindow::Ascii,
-            Self::Hex => window_type == FocusedWindow::Hex,
+            Self::Ascii => window_type == Window::Ascii,
+            Self::Hex => window_type == Window::Hex,
         }
     }
     fn left(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
@@ -78,7 +78,7 @@ impl KeyHandler for Editor {
         labels.update_all(&app.contents[app.offset..]);
         adjust_offset(app, display, labels);
 
-        if self.is_focusing(FocusedWindow::Hex) {
+        if self.is_focusing(Window::Hex) {
             app.nibble = Nibble::Beginning;
         }
     }
@@ -91,7 +91,7 @@ impl KeyHandler for Editor {
         labels.update_all(&app.contents[app.offset..]);
         adjust_offset(app, display, labels);
 
-        if self.is_focusing(FocusedWindow::Hex) {
+        if self.is_focusing(Window::Hex) {
             app.nibble = Nibble::End;
         }
     }

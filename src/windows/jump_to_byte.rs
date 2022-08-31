@@ -6,7 +6,7 @@ use tui::{
 
 use crate::{app::AppData, label::LabelHandler, screen::ScreenHandler};
 
-use super::{adjust_offset, FocusedWindow, KeyHandler, PopupOutput};
+use super::{adjust_offset, KeyHandler, PopupOutput, Window};
 
 /// A window that can accept input and attempt to move the cursor to the inputted byte.
 ///
@@ -14,13 +14,13 @@ use super::{adjust_offset, FocusedWindow, KeyHandler, PopupOutput};
 ///
 /// The input is either parsed as hexadecimal if it is preceded with "0x", or decimal if not.
 #[derive(PartialEq, Eq)]
-pub struct JumpToByte {
-    pub input: String,
+pub(crate) struct JumpToByte {
+    pub(crate) input: String,
 }
 
 impl KeyHandler for JumpToByte {
-    fn is_focusing(&self, window_type: FocusedWindow) -> bool {
-        window_type == FocusedWindow::JumpToByte
+    fn is_focusing(&self, window_type: Window) -> bool {
+        window_type == Window::JumpToByte
     }
     fn char(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler, c: char) {
         self.input.push(c);
@@ -63,7 +63,7 @@ impl KeyHandler for JumpToByte {
 }
 
 impl JumpToByte {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self { input: String::new() }
     }
 }
