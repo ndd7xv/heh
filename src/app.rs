@@ -3,7 +3,9 @@
 //! The application holds the main components of the other modules, like the [`ScreenHandler`],
 //! [`LabelHandler`], and input handling, as well as the state data that each of them need.
 
-use std::{error::Error, fs::File, io::Read, process};
+use std::{
+    collections::hash_map::DefaultHasher, error::Error, fs::File, hash::Hasher, io::Read, process,
+};
 
 use crossterm::event::{self, Event};
 
@@ -12,11 +14,11 @@ use arboard::Clipboard;
 use crate::{
     input,
     label::LabelHandler,
-    screen::{
-        ClickedComponent::{self, Unclickable},
-        ScreenHandler,
+    screen::ScreenHandler,
+    windows::{
+        editor::Editor, jump_to_byte::JumpToByte, unsaved_changes::UnsavedChanges, KeyHandler,
+        Window,
     },
-    windows::{Editor, KeyHandler},
 };
 
 /// Enum that represent grouping of 4 bits in a byte.
@@ -46,6 +48,9 @@ pub(crate) struct AppData {
     /// The file content.
     pub(crate) contents: Vec<u8>,
 
+    /// The hashed content, used for checking if anything has been changed.
+    pub(crate) hashed_contents: u64,
+
     /// Offset of the first content byte that is visible on the screen.
     pub(crate) start_address: usize,
 
@@ -56,7 +61,7 @@ pub(crate) struct AppData {
     pub(crate) nibble: Nibble,
 
     /// The last clicked (key down AND key up) label/window.
-    pub(crate) last_click: ClickedComponent,
+    pub(crate) last_click: Window,
 
     /// Copies label data to your clipboard.
     pub(crate) clipboard: Option<Clipboard>,
@@ -95,26 +100,33 @@ impl Application {
             eprintln!("heh does not support editing empty files");
             process::exit(1);
         }
+
         let mut labels = LabelHandler::new(&contents);
         let clipboard = Clipboard::new().ok();
         if clipboard.is_none() {
             labels.notification = String::from("Can't find clipboard!");
         }
-        Ok(Self {
+
+        let mut app = Self {
             data: AppData {
                 file,
                 contents,
+                hashed_contents: 0,
                 start_address: 0,
                 offset: 0,
                 nibble: Nibble::Beginning,
-                last_click: Unclickable,
+                last_click: Window::Unhandled,
                 clipboard,
                 editor: Editor::Hex,
             },
             display: ScreenHandler::new()?,
             labels,
             key_handler: Box::from(Editor::Hex),
-        })
+        };
+
+        app.data.hashed_contents = app.hash_contents();
+
+        Ok(app)
     }
 
     /// A loop that repeatedly renders the terminal and modifies state based on input. Is stopped
@@ -153,5 +165,53 @@ impl Application {
             Event::Resize(_, _) => {}
         }
         Ok(true)
+    }
+
+    /// Hashes the contents of a file and is used to check if there are any changes.
+    pub(crate) fn hash_contents(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        hasher.write(&self.data.contents);
+        hasher.finish()
+    }
+
+    /// Sets the current [`KeyHandler`]. This should be used when trying to focus another window.
+    /// Setting the [`KeyHandler`] directly could cause errors.
+    ///
+    /// Popup dimensions are also changed here and are safe to do so because there are currently
+    /// no popups that have dimensions based off of the size of the terminal frame.
+    pub(crate) fn set_focused_window(&mut self, window: Window) {
+        match window {
+            Window::Hex => {
+                self.key_handler = Box::from(Editor::Hex);
+                self.data.editor = Editor::Hex;
+            }
+            Window::Ascii => {
+                self.key_handler = Box::from(Editor::Ascii);
+                self.data.editor = Editor::Ascii;
+            }
+            Window::JumpToByte => {
+                self.key_handler = Box::from(JumpToByte::new());
+                self.display.comp_layouts.popup = ScreenHandler::calculate_popup_dimensions(
+                    self.display.terminal_size,
+                    self.key_handler.as_ref(),
+                );
+            }
+            Window::UnsavedChanges => {
+                self.key_handler = Box::from(UnsavedChanges::new());
+                self.display.comp_layouts.popup = ScreenHandler::calculate_popup_dimensions(
+                    self.display.terminal_size,
+                    self.key_handler.as_ref(),
+                );
+            }
+            // We should never try and focus these windows to accept input.
+            Window::Unhandled | Window::Label(_) => {
+                panic!()
+            }
+        }
+    }
+
+    /// Focuses the previously selected editor and is usually invoked after closing a popup.
+    pub(crate) fn focus_editor(&mut self) {
+        self.key_handler = Box::from(self.data.editor);
     }
 }

@@ -2,7 +2,7 @@
 
 The HEx Helper is a cross-platform terminal UI used for modifying file data in hex or ASCII. It aims to replicate some of the look of hexyl while functionaly acting like a terminal UI version of GHex.
 
-__heh is currently in alpha - it's not ready to be used in any production manner. Notably, it does not warn users of quitting before saving, it does not store backups if killed or crashing, and there is no undo option after deleting a byte.__
+__heh is currently in alpha - it's not ready to be used in any production manner. Notably, it does not store backups if killed or crashing and there is no undo option after deleting a byte.__
 
 ![screenshot of heh](demo.png)
 

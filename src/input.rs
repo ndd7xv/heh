@@ -14,8 +14,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
 use crate::{
     app::Application,
     label::LABEL_TITLES,
-    screen::ClickedComponent::{AsciiTable, HexTable, Label, Unclickable},
-    windows::{Editor, FocusedWindow, JumpToByte},
+    windows::{PopupOutput, Window},
 };
 
 /// Wrapper function that calls the corresponding [`KeyHandler`](crate::windows::KeyHandler) methods of
@@ -54,10 +53,18 @@ pub(crate) fn handle_key_input(
         KeyCode::Delete => {
             app.key_handler.delete(&mut app.data, &mut app.display, &mut app.labels);
         }
+        KeyCode::Esc => {
+            app.focus_editor();
+        }
 
         KeyCode::Enter => {
+            if app.key_handler.is_focusing(Window::UnsavedChanges)
+                && app.key_handler.get_user_input() == PopupOutput::Boolean(true)
+            {
+                return Ok(false);
+            }
             app.key_handler.enter(&mut app.data, &mut app.display, &mut app.labels);
-            app.key_handler = Box::from(app.data.editor);
+            app.focus_editor();
         }
 
         KeyCode::Char(char) => {
@@ -69,6 +76,9 @@ pub(crate) fn handle_key_input(
     }
     Ok(true)
 }
+
+/// Handles a character key press. While used predominantly to edit a file, it also checks for
+/// any shortcut commands being used.
 pub(crate) fn handle_character_input(
     app: &mut Application,
     char: char,
@@ -77,22 +87,27 @@ pub(crate) fn handle_character_input(
     if modifiers == KeyModifiers::CONTROL {
         match char {
             'j' => {
-                if app.key_handler.is_focusing(FocusedWindow::JumpToByte) {
-                    app.key_handler = Box::from(app.data.editor);
+                if app.key_handler.is_focusing(Window::JumpToByte) {
+                    app.focus_editor();
                 } else {
-                    app.data.editor = *app
-                        .key_handler
-                        .as_any()
-                        .downcast_ref()
-                        .expect("The current window wasn't an editor");
-                    app.key_handler = Box::from(JumpToByte::new());
+                    app.set_focused_window(Window::JumpToByte);
                 }
             }
-            'q' => return Ok(false),
+            'q' => {
+                if !app.key_handler.is_focusing(Window::UnsavedChanges) {
+                    if app.hash_contents() == app.data.hashed_contents {
+                        return Ok(false);
+                    }
+                    app.set_focused_window(Window::UnsavedChanges);
+                }
+            }
             's' => {
                 app.data.file.seek(SeekFrom::Start(0))?;
                 app.data.file.write_all(&app.data.contents)?;
                 app.data.file.set_len(app.data.contents.len() as u64)?;
+
+                app.data.hashed_contents = app.hash_contents();
+
                 app.labels.notification = String::from("Saved!");
             }
             _ => {}
@@ -119,6 +134,9 @@ pub(crate) fn handle_character_input(
     }
     Ok(true)
 }
+
+/// Handles the mouse input, which consists of things like scrolling and focusing components
+/// based on a left and right click.
 pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
     let component =
         app.display.identify_clicked_component(mouse.row, mouse.column, app.key_handler.as_ref());
@@ -126,19 +144,21 @@ pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
         MouseEventKind::Down(MouseButton::Left) => {
             app.data.last_click = component;
             match app.data.last_click {
-                HexTable => {
-                    app.key_handler = Box::from(Editor::Hex);
+                Window::Hex => {
+                    app.set_focused_window(Window::Hex);
                 }
-                AsciiTable => {
-                    app.key_handler = Box::from(Editor::Ascii);
+                Window::Ascii => {
+                    app.set_focused_window(Window::Ascii);
                 }
-                Label(_) | Unclickable => {}
+                Window::Label(_)
+                | Window::Unhandled
+                | Window::JumpToByte
+                | Window::UnsavedChanges => {}
             }
         }
         MouseEventKind::Up(MouseButton::Left) => {
             match component {
-                HexTable | AsciiTable | Unclickable => {}
-                Label(i) => {
+                Window::Label(i) => {
                     if app.data.last_click == component {
                         // Put string into clipboard
                         if let Some(clipboard) = app.data.clipboard.as_mut() {
@@ -149,6 +169,11 @@ pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
                         }
                     }
                 }
+                Window::Hex
+                | Window::Ascii
+                | Window::Unhandled
+                | Window::JumpToByte
+                | Window::UnsavedChanges => {}
             }
         }
         MouseEventKind::ScrollUp => {

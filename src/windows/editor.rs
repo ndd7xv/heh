@@ -1,6 +1,4 @@
-//! The components that implement [`KeyHandler`], which allow them to uniquely react to user input.
-
-use std::{any::Any, cmp};
+use std::cmp;
 
 use crate::{
     app::{AppData, Nibble},
@@ -8,72 +6,20 @@ use crate::{
     screen::ScreenHandler,
 };
 
-const DEFAULT_INPUT: &str = "";
-
-/// A trait for objects which handle input.
-///
-/// Depending on what is currently focused, user input can be handled in different ways. For
-/// example, pressing enter should not modify the opened file in any form, but doing so while the
-/// "Jump To Byte" popup is focused should attempt to move the cursor to the inputted byte.
-pub(crate) trait KeyHandler {
-    /// Downcasts a dynamic [`KeyHandler`] into a specific one.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Checks if the current [`KeyHandler`] is a certain [`FocusedWindow`].
-    fn is_focusing(&self, window_type: FocusedWindow) -> bool;
-
-    // Methods that handle their respective keypresses.
-    fn left(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn right(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn up(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn down(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn home(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn end(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn backspace(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn delete(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn enter(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn char(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler, _: char) {}
-
-    /// Returns user input. Is currently just used to get the contents of popups.
-    fn get_user_input(&self) -> &str {
-        DEFAULT_INPUT
-    }
-}
-
-/// An enumeration of all the potential components that could be focused. Used to identify which
-/// component is currently focused in the `Application`'s input field.
-#[derive(PartialEq, Eq)]
-pub enum FocusedWindow {
-    Ascii,
-    Hex,
-    JumpToByte,
-}
+use super::{adjust_offset, KeyHandler, Window};
 
 /// The main windows that allow users to edit HEX and ASCII.
 #[derive(PartialEq, Eq, Clone, Copy)]
-pub enum Editor {
+pub(crate) enum Editor {
     Ascii,
     Hex,
 }
 
-/// A window that can accept input and attempt to move the cursor to the inputted byte.
-///
-/// This can be opened by pressing `CNTRLj`.
-///
-/// The input is either parsed as hexadecimal if it is preceded with "0x", or decimal if not.
-#[derive(PartialEq, Eq)]
-pub struct JumpToByte {
-    pub input: String,
-}
-
 impl KeyHandler for Editor {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn is_focusing(&self, window_type: FocusedWindow) -> bool {
+    fn is_focusing(&self, window_type: Window) -> bool {
         match self {
-            Self::Ascii => window_type == FocusedWindow::Ascii,
-            Self::Hex => window_type == FocusedWindow::Hex,
+            Self::Ascii => window_type == Window::Ascii,
+            Self::Hex => window_type == Window::Hex,
         }
     }
     fn left(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
@@ -132,7 +78,7 @@ impl KeyHandler for Editor {
         labels.update_all(&app.contents[app.offset..]);
         adjust_offset(app, display, labels);
 
-        if self.is_focusing(FocusedWindow::Hex) {
+        if self.is_focusing(Window::Hex) {
             app.nibble = Nibble::Beginning;
         }
     }
@@ -145,7 +91,7 @@ impl KeyHandler for Editor {
         labels.update_all(&app.contents[app.offset..]);
         adjust_offset(app, display, labels);
 
-        if self.is_focusing(FocusedWindow::Hex) {
+        if self.is_focusing(Window::Hex) {
             app.nibble = Nibble::End;
         }
     }
@@ -225,82 +171,4 @@ impl KeyHandler for Editor {
     }
 
     fn enter(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-
-    fn get_user_input(&self) -> &str {
-        DEFAULT_INPUT
-    }
-}
-
-impl KeyHandler for JumpToByte {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn is_focusing(&self, window_type: FocusedWindow) -> bool {
-        window_type == FocusedWindow::JumpToByte
-    }
-    fn char(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler, c: char) {
-        self.input.push(c);
-    }
-    fn get_user_input(&self) -> &str {
-        &self.input
-    }
-    fn backspace(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {
-        self.input.pop();
-    }
-    fn enter(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
-        let new_offset = if self.input.starts_with("0x") {
-            usize::from_str_radix(&self.input[2..], 16)
-        } else {
-            self.input.parse()
-        };
-        if let Ok(new_offset) = new_offset {
-            if new_offset >= app.contents.len() {
-                labels.notification = String::from("Invalid range!");
-            } else {
-                app.offset = new_offset;
-                labels.update_all(&app.contents[app.offset..]);
-                adjust_offset(app, display, labels);
-            }
-        } else {
-            labels.notification = format!("Error: {:?}", new_offset.unwrap_err());
-        }
-    }
-}
-
-impl JumpToByte {
-    pub fn new() -> Self {
-        Self { input: String::new() }
-    }
-}
-
-/// Moves the starting address of the editor viewports (Hex and ASCII) to include the cursor.
-///
-/// If the cursor's location is before the viewports start, the viewports will move so that the
-/// cursor is included in the first row.
-///
-/// If the cursor's location is past the end of the viewports, the vierports will move so that
-/// the cursor is included in the final row.
-fn adjust_offset(app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
-    let line_adjustment = if app.offset <= app.start_address {
-        app.start_address - app.offset + display.comp_layouts.bytes_per_line - 1
-    } else {
-        app.offset - app.start_address
-    } / display.comp_layouts.bytes_per_line;
-
-    let bytes_per_screen =
-        display.comp_layouts.bytes_per_line * display.comp_layouts.lines_per_screen;
-
-    if app.offset < app.start_address {
-        app.start_address =
-            app.start_address.saturating_sub(display.comp_layouts.bytes_per_line * line_adjustment);
-    } else if app.offset >= app.start_address + (bytes_per_screen)
-        && app.start_address + display.comp_layouts.bytes_per_line < app.contents.len()
-    {
-        app.start_address = app.start_address.saturating_add(
-            display.comp_layouts.bytes_per_line
-                * (line_adjustment + 1 - display.comp_layouts.lines_per_screen),
-        );
-    }
-
-    labels.offset = format!("{:#X}", app.offset);
 }

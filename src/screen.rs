@@ -24,7 +24,7 @@ use tui::{
 use crate::{
     app::{AppData, Nibble},
     label::{LabelHandler, LABEL_TITLES},
-    windows::{FocusedWindow, KeyHandler},
+    windows::{editor::Editor, KeyHandler, Window},
 };
 
 use crate::byte::{as_str, get_color};
@@ -41,18 +41,10 @@ pub(crate) struct ComponentLayouts {
     line_numbers: Rect,
     hex: Rect,
     ascii: Rect,
-    popup: Rect,
     labels: Vec<Rect>,
+    pub(crate) popup: Rect,
     pub(crate) bytes_per_line: usize,
     pub(crate) lines_per_screen: usize,
-}
-
-#[derive(PartialEq)]
-pub(crate) enum ClickedComponent {
-    HexTable,
-    AsciiTable,
-    Label(usize),
-    Unclickable,
 }
 
 impl ScreenHandler {
@@ -62,7 +54,7 @@ impl ScreenHandler {
         Ok(Self {
             terminal,
             terminal_size,
-            comp_layouts: Self::calculate_dimensions(terminal_size),
+            comp_layouts: Self::calculate_dimensions(terminal_size, &Editor::Hex),
         })
     }
     pub(crate) fn setup() -> Result<(), Box<dyn Error>> {
@@ -81,24 +73,28 @@ impl ScreenHandler {
         row: u16,
         col: u16,
         window: &dyn KeyHandler,
-    ) -> ClickedComponent {
+    ) -> Window {
         let click = Rect::new(col, row, 0, 0);
-        let popup_enabled = window.is_focusing(FocusedWindow::JumpToByte);
+        let popup_enabled = !(window.is_focusing(Window::Hex) || window.is_focusing(Window::Ascii));
         if popup_enabled && self.comp_layouts.popup.union(click) == self.comp_layouts.popup {
-            return ClickedComponent::Unclickable;
+            return Window::Unhandled;
         } else if self.comp_layouts.hex.union(click) == self.comp_layouts.hex {
-            return ClickedComponent::HexTable;
+            return Window::Hex;
         } else if self.comp_layouts.ascii.union(click) == self.comp_layouts.ascii {
-            return ClickedComponent::AsciiTable;
+            return Window::Ascii;
         }
         for (i, &label) in self.comp_layouts.labels.iter().enumerate() {
             if label.union(click) == label {
-                return ClickedComponent::Label(i);
+                return Window::Label(i);
             }
         }
-        ClickedComponent::Unclickable
+        Window::Unhandled
     }
-    fn calculate_dimensions(frame: Rect) -> ComponentLayouts {
+
+    /// Calculates the dimensions of the components that will be continually displayed.
+    ///
+    /// This includes the editors, labels, and address table.
+    fn calculate_dimensions(frame: Rect, window: &dyn KeyHandler) -> ComponentLayouts {
         // Establish Constraints
         let sections = Layout::default()
             .direction(Direction::Vertical)
@@ -108,6 +104,9 @@ impl ScreenHandler {
             .direction(Direction::Horizontal)
             .constraints([
                 Constraint::Length(10),
+                // The address table is Length(10) as specified above. Because the hex editor takes
+                // 3 graphemes for every 1 that ASCII takes (each nibble plus a space), we multiply
+                // the editors by those ratios.
                 Constraint::Length((frame.width - 10) * 3 / 4 - 1),
                 Constraint::Length((frame.width - 10) / 4),
             ])
@@ -137,7 +136,7 @@ impl ScreenHandler {
         }
 
         // Calculate popup dimensions
-        let popup = popup_rect(cmp::max(45, frame.width / 2), 3, frame);
+        let popup = Self::calculate_popup_dimensions(frame, window);
 
         // Calculate bytes per line
         let bytes_per_line = ((editors[1].width - 2) / 3) as usize;
@@ -153,6 +152,15 @@ impl ScreenHandler {
             labels,
         }
     }
+
+    /// Calculates the dimensions of the popup that is being focused. Currently used in
+    /// [`calculate_dimensions`](Self::calculate_dimensions) and
+    /// [`set_focused_window`](crate::app::Application::set_focused_window)
+    /// since the dimensions are constant and are only changed when the popup changes.
+    pub(crate) fn calculate_popup_dimensions(frame: Rect, window: &dyn KeyHandler) -> Rect {
+        window.dimensions().map_or_else(Rect::default, |dimensions| popup_rect(dimensions, frame))
+    }
+
     fn generate_text<'a>(
         contents: &'a [u8],
         start_address: usize,
@@ -254,7 +262,7 @@ impl ScreenHandler {
 
     /// Display the addresses, editors, labels, and popups based off of the specifications of
     /// [`ComponentLayouts`], defined by
-    /// [`calculate_dimensions`](ScreenHandler::calculate_dimensions).
+    /// [`calculate_dimensions`](Self::calculate_dimensions).
     pub(crate) fn render(
         &mut self,
         app_info: &AppData,
@@ -268,7 +276,7 @@ impl ScreenHandler {
             let size = f.size();
             if size != self.terminal_size {
                 self.terminal_size = size;
-                self.comp_layouts = Self::calculate_dimensions(self.terminal_size);
+                self.comp_layouts = Self::calculate_dimensions(self.terminal_size, window);
             }
 
             // Check if terminal is large enough
@@ -308,7 +316,7 @@ impl ScreenHandler {
             f.render_widget(
                 Paragraph::new(hex_text).block(
                     Block::default().borders(Borders::ALL).title("Hex").style(
-                        if window.is_focusing(FocusedWindow::Hex) {
+                        if window.is_focusing(Window::Hex) {
                             Style::default().fg(Color::Yellow)
                         } else {
                             Style::default()
@@ -322,7 +330,7 @@ impl ScreenHandler {
             f.render_widget(
                 Paragraph::new(ascii_text).block(
                     Block::default().borders(Borders::ALL).title("ASCII").style(
-                        if window.is_focusing(FocusedWindow::Ascii) {
+                        if window.is_focusing(Window::Ascii) {
                             Style::default().fg(Color::Yellow)
                         } else {
                             Style::default()
@@ -341,22 +349,10 @@ impl ScreenHandler {
                 );
             }
 
-            // Render Popup - In the future, this should be able to handle different types of popups.
-            if window.is_focusing(FocusedWindow::JumpToByte) {
+            // Render Popup
+            if !window.is_focusing(Window::Hex) && !window.is_focusing(Window::Ascii) {
                 f.render_widget(Clear, self.comp_layouts.popup);
-                f.render_widget(
-                    Paragraph::new(Span::styled(
-                        window.get_user_input(),
-                        Style::default().fg(Color::White),
-                    ))
-                    .block(
-                        Block::default()
-                            .title("Jump to Byte:")
-                            .borders(Borders::ALL)
-                            .style(Style::default().fg(Color::Yellow)),
-                    ),
-                    self.comp_layouts.popup,
-                );
+                f.render_widget(window.widget(), self.comp_layouts.popup);
             }
         })?;
         Ok(())
@@ -364,14 +360,14 @@ impl ScreenHandler {
 }
 
 /// Generates the dimensions of an x by y popup that is centered in Rect r.
-fn popup_rect(x: u16, y: u16, r: Rect) -> Rect {
+fn popup_rect((x, y): (u16, u16), r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
             [
-                Constraint::Length((r.height - y) / 2),
+                Constraint::Length(r.height.saturating_sub(y) / 2),
                 Constraint::Length(y),
-                Constraint::Min((r.height - y) / 2),
+                Constraint::Min(r.height.saturating_sub(y) / 2),
             ]
             .as_ref(),
         )
@@ -381,9 +377,9 @@ fn popup_rect(x: u16, y: u16, r: Rect) -> Rect {
         .direction(Direction::Horizontal)
         .constraints(
             [
-                Constraint::Min((r.width - x) / 2),
+                Constraint::Min(r.width.saturating_sub(x) / 2),
                 Constraint::Length(x),
-                Constraint::Min((r.width - x) / 2),
+                Constraint::Min(r.width.saturating_sub(x) / 2),
             ]
             .as_ref(),
         )
