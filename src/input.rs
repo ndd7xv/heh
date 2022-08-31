@@ -130,7 +130,39 @@ pub(crate) fn handle_character_input(
     } else if modifiers | KeyModifiers::NONE | KeyModifiers::SHIFT
         == KeyModifiers::NONE | KeyModifiers::SHIFT
     {
-        app.key_handler.char(&mut app.data, &mut app.display, &mut app.labels, char);
+        let is_hex = app.key_handler.is_focusing(Window::Hex);
+
+        match char {
+            'q' if is_hex => {
+                if !app.key_handler.is_focusing(Window::UnsavedChanges) {
+                    if app.hash_contents() == app.data.hashed_contents {
+                        return Ok(false);
+                    }
+                    app.set_focused_window(Window::UnsavedChanges);
+                }
+            }
+            'h' if is_hex => {
+                app.key_handler.left(&mut app.data, &mut app.display, &mut app.labels);
+            }
+            'l' if is_hex => {
+                app.key_handler.right(&mut app.data, &mut app.display, &mut app.labels);
+            }
+            'k' if is_hex => {
+                app.key_handler.up(&mut app.data, &mut app.display, &mut app.labels);
+            }
+            'j' if is_hex => {
+                app.key_handler.down(&mut app.data, &mut app.display, &mut app.labels);
+            }
+            '^' if is_hex => {
+                app.key_handler.home(&mut app.data, &mut app.display, &mut app.labels);
+            }
+            '$' if is_hex => {
+                app.key_handler.end(&mut app.data, &mut app.display, &mut app.labels);
+            }
+            _ => {
+                app.key_handler.char(&mut app.data, &mut app.display, &mut app.labels, char);
+            }
+        }
     }
     Ok(true)
 }
