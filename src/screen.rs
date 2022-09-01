@@ -177,14 +177,6 @@ impl ScreenHandler {
             .map(|i| Spans::from(format!("{:08X?}\n", (start_address + i * bytes_per_line))))
             .collect::<Vec<Spans>>();
 
-        let cursor_row = offset / bytes_per_line;
-
-        // Highlight the address row that the cursor is in for visibility
-        if cursor_row >= start_row && cursor_row < start_row + lines_per_screen {
-            address_text[cursor_row - start_row].0[0].style =
-                Style::default().bg(Color::White).fg(Color::Black);
-        }
-
         // Display hex - chunks the bytes into rows and formats them into hex
         let mut hex_text = contents[start_address..]
             .chunks(bytes_per_line)
@@ -220,10 +212,16 @@ impl ScreenHandler {
             })
             .collect::<Vec<Spans>>();
 
+        let cursor_row = offset / bytes_per_line;
+        let cursor_col = offset % bytes_per_line;
+
         // Style the selected byte that the cursor is on
         let cursor_byte = contents[offset];
-        let cursor_col = offset % bytes_per_line;
         if cursor_row >= start_row && cursor_row < start_row + lines_per_screen {
+            // Highlight the address row that the cursor is in for visibility
+            address_text[cursor_row - start_row].0[0].style =
+                Style::default().bg(Color::White).fg(Color::Black);
+
             // Highlight the selected nibble in the Hex table
             let byte = format!("{:02X?}", cursor_byte);
             let mut byte = byte.chars();
@@ -265,18 +263,25 @@ impl ScreenHandler {
     /// [`calculate_dimensions`](Self::calculate_dimensions).
     pub(crate) fn render(
         &mut self,
-        app_info: &AppData,
+        app_info: &mut AppData,
         labels: &LabelHandler,
         window: &dyn KeyHandler,
     ) -> Result<(), Box<dyn Error>> {
         self.terminal.draw(|f| {
-            // We check if we need to recompute the terminal size in the case that the saved off variable
-            // differs from the current frame, which can occur when a terminal is resized between an event
-            // handling and a rendering.
+            // We check if we need to recompute the terminal size in the case that the saved off
+            // variable differs from the current frame, which can occur when a terminal is resized
+            // between an event handling and a rendering.
             let size = f.size();
             if size != self.terminal_size {
                 self.terminal_size = size;
                 self.comp_layouts = Self::calculate_dimensions(self.terminal_size, window);
+
+                // We change the start_address here to ensure that 0 is ALWAYS the first start
+                // address. We round to preventing constant resizing always moving to 0.
+                app_info.start_address = (app_info.start_address
+                    + (self.comp_layouts.bytes_per_line / 2))
+                    / self.comp_layouts.bytes_per_line
+                    * self.comp_layouts.bytes_per_line;
             }
 
             // Check if terminal is large enough

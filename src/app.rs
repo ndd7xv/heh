@@ -146,7 +146,7 @@ impl Application {
     /// Renders the display. This is a wrapper around [`ScreenHandler`'s
     /// render](ScreenHandler::render) method.
     fn render_display(&mut self) -> Result<(), Box<dyn Error>> {
-        self.display.render(&self.data, &self.labels, self.key_handler.as_ref())?;
+        self.display.render(&mut self.data, &self.labels, self.key_handler.as_ref())?;
         Ok(())
     }
 

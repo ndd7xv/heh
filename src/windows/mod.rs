@@ -79,25 +79,14 @@ pub(crate) fn adjust_offset(
     display: &mut ScreenHandler,
     labels: &mut LabelHandler,
 ) {
-    let line_adjustment = if app.offset <= app.start_address {
-        app.start_address - app.offset + display.comp_layouts.bytes_per_line - 1
-    } else {
-        app.offset - app.start_address
-    } / display.comp_layouts.bytes_per_line;
-
-    let bytes_per_screen =
-        display.comp_layouts.bytes_per_line * display.comp_layouts.lines_per_screen;
+    let bytes_per_line = display.comp_layouts.bytes_per_line;
+    let bytes_per_screen = bytes_per_line * display.comp_layouts.lines_per_screen;
 
     if app.offset < app.start_address {
+        app.start_address = (app.offset / bytes_per_line) * bytes_per_line;
+    } else if app.offset >= app.start_address + (bytes_per_screen) {
         app.start_address =
-            app.start_address.saturating_sub(display.comp_layouts.bytes_per_line * line_adjustment);
-    } else if app.offset >= app.start_address + (bytes_per_screen)
-        && app.start_address + display.comp_layouts.bytes_per_line < app.contents.len()
-    {
-        app.start_address = app.start_address.saturating_add(
-            display.comp_layouts.bytes_per_line
-                * (line_adjustment + 1 - display.comp_layouts.lines_per_screen),
-        );
+            (app.offset / bytes_per_line) * bytes_per_line - bytes_per_screen + bytes_per_line;
     }
 
     labels.offset = format!("{:#X}", app.offset);
