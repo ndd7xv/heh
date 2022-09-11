@@ -39,8 +39,8 @@ pub(crate) struct ScreenHandler {
 
 pub(crate) struct ComponentLayouts {
     line_numbers: Rect,
-    hex: Rect,
-    ascii: Rect,
+    pub(crate) hex: Rect,
+    pub(crate) ascii: Rect,
     labels: Vec<Rect>,
     pub(crate) popup: Rect,
     pub(crate) bytes_per_line: usize,

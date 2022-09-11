@@ -12,7 +12,7 @@ use std::{
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
 use crate::{
-    app::Application,
+    app::{Application, Nibble},
     label::LABEL_TITLES,
     windows::{PopupOutput, Window},
 };
@@ -178,9 +178,41 @@ pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
             match app.data.last_click {
                 Window::Hex => {
                     app.set_focused_window(Window::Hex);
+                    let hex = &app.display.comp_layouts.hex;
+                    // Identify the byte that was clicked on based on the relative position.
+                    let (mut rel_x, mut rel_y) = (mouse.column - hex.x, mouse.row - hex.y);
+                    // Account for the border of the viewport.
+                    if rel_y > 0 && rel_x > 0 && hex.height - 1 > rel_y && hex.width - 1 > rel_x {
+                        (rel_x, rel_y) = (rel_x, rel_y - 1);
+                        if rel_x % 3 != 0 {
+                            let new_pos = app.data.start_address
+                                + (rel_y as usize * app.display.comp_layouts.bytes_per_line)
+                                + (rel_x as usize / 3);
+                            if new_pos < app.data.contents.len() {
+                                app.data.offset = new_pos;
+                                if rel_x % 3 == 1 {
+                                    app.data.nibble = Nibble::Beginning;
+                                } else if rel_x % 3 == 2 {
+                                    app.data.nibble = Nibble::End;
+                                }
+                            }
+                        }
+                    }
                 }
                 Window::Ascii => {
                     app.set_focused_window(Window::Ascii);
+                    let ascii = &app.display.comp_layouts.ascii;
+                    let (mut rel_x, mut rel_y) = (mouse.column - ascii.x, mouse.row - ascii.y);
+                    if rel_y > 0 && rel_x > 0 && ascii.height - 1 > rel_y && ascii.width - 1 > rel_x
+                    {
+                        (rel_x, rel_y) = (rel_x - 1, rel_y - 1);
+                        let new_pos = app.data.start_address
+                            + (rel_y as usize * app.display.comp_layouts.bytes_per_line)
+                            + (rel_x as usize);
+                        if new_pos < app.data.contents.len() {
+                            app.data.offset = new_pos;
+                        }
+                    }
                 }
                 Window::Label(_)
                 | Window::Unhandled
