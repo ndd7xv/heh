@@ -46,6 +46,8 @@ pub(crate) trait KeyHandler {
     fn down(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
     fn home(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
     fn end(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
+    fn page_up(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
+    fn page_down(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
     fn backspace(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
     fn delete(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
     fn enter(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}

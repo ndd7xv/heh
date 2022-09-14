@@ -45,6 +45,12 @@ pub(crate) fn handle_key_input(
         KeyCode::End => {
             app.key_handler.end(&mut app.data, &mut app.display, &mut app.labels);
         }
+        KeyCode::PageUp => {
+            app.key_handler.page_up(&mut app.data, &mut app.display, &mut app.labels);
+        }
+        KeyCode::PageDown => {
+            app.key_handler.page_down(&mut app.data, &mut app.display, &mut app.labels);
+        }
 
         // Removals
         KeyCode::Backspace => {

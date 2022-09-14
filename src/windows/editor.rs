@@ -95,6 +95,33 @@ impl KeyHandler for Editor {
             app.nibble = Nibble::End;
         }
     }
+    fn page_up(
+        &mut self,
+        app: &mut AppData,
+        display: &mut ScreenHandler,
+        labels: &mut LabelHandler,
+    ) {
+        app.offset = app.offset.saturating_sub(
+            display.comp_layouts.bytes_per_line * display.comp_layouts.lines_per_screen,
+        );
+        labels.update_all(&app.contents[app.offset..]);
+        adjust_offset(app, display, labels);
+    }
+    fn page_down(
+        &mut self,
+        app: &mut AppData,
+        display: &mut ScreenHandler,
+        labels: &mut LabelHandler,
+    ) {
+        app.offset = cmp::min(
+            app.offset.saturating_add(
+                display.comp_layouts.bytes_per_line * display.comp_layouts.lines_per_screen,
+            ),
+            app.contents.len() - 1,
+        );
+        labels.update_all(&app.contents[app.offset..]);
+        adjust_offset(app, display, labels);
+    }
     fn backspace(
         &mut self,
         app: &mut AppData,
