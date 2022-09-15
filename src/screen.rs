@@ -161,14 +161,14 @@ impl ScreenHandler {
         window.dimensions().map_or_else(Rect::default, |dimensions| popup_rect(dimensions, frame))
     }
 
-    fn generate_text<'a>(
-        contents: &'a [u8],
+    fn generate_text(
+        contents: &[u8],
         start_address: usize,
         offset: usize,
         bytes_per_line: usize,
         lines_per_screen: usize,
-        nibble: &Nibble,
-    ) -> (Text<'a>, Text<'a>, Text<'a>) {
+        nibble: Nibble,
+    ) -> (Text, Text, Text) {
         let content_lines = contents.len() / bytes_per_line + 1;
         let start_row = start_address / bytes_per_line;
 
@@ -227,7 +227,7 @@ impl ScreenHandler {
             let mut byte = byte.chars();
             hex_text[cursor_row - start_row].0[cursor_col] = Span::styled(
                 byte.next().unwrap().to_string(),
-                if nibble == &Nibble::Beginning {
+                if nibble == Nibble::Beginning {
                     Style::default().fg(*get_color(cursor_byte)).bg(COLOR_NULL)
                 } else {
                     Style::default().fg(*get_color(cursor_byte))
@@ -237,7 +237,7 @@ impl ScreenHandler {
                 cursor_col + 1,
                 Span::styled(
                     byte.next().unwrap().to_string(),
-                    if nibble == &Nibble::End {
+                    if nibble == Nibble::End {
                         Style::default().fg(*get_color(cursor_byte)).bg(COLOR_NULL)
                     } else {
                         Style::default().fg(*get_color(cursor_byte))
@@ -307,7 +307,7 @@ impl ScreenHandler {
                 app_info.offset,
                 self.comp_layouts.bytes_per_line,
                 self.comp_layouts.lines_per_screen,
-                &app_info.nibble,
+                app_info.nibble,
             );
 
             // Render Line Numbers

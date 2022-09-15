@@ -25,7 +25,7 @@ use crate::{
 ///
 /// For example, the first nibble in 0XF4 is 1111, or the F in hexadecimal. This is specified by
 /// [`Nibble::Beginning`]. The last four bits (or 4 in hex) would be specified by [`Nibble::End`].
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone)]
 pub(crate) enum Nibble {
     Beginning,
     End,
@@ -38,6 +38,21 @@ impl Nibble {
             Self::End => *self = Self::Beginning,
         }
     }
+}
+
+/// An instance of a user action, used to implement the undo feature.
+///
+/// These actions record the previous state - deleting the first byte (x00) correlates to
+/// Delete(0, x00).
+pub(crate) enum Action {
+    /// Tracks a user keypress to modify the contents of the file.
+    CharacterInput(usize, u8, Option<Nibble>),
+
+    /// Tracks when a user deletes the byte before the cursor.
+    Backspace(usize, u8),
+
+    /// Tracks when a user deletes the byte at the current cursor.
+    Delete(usize, u8),
 }
 
 /// State Information needed by the [`ScreenHandler`] and [`KeyHandler`].
@@ -68,6 +83,9 @@ pub(crate) struct AppData {
 
     /// The editor that is currently selected. This editor will be refocused upon a popup closing.
     pub(crate) editor: Editor,
+
+    /// A series of actions that keep track of what the user does.
+    pub(crate) actions: Vec<Action>,
 }
 
 /// Application provides the user interaction interface and renders the terminal screen in response
@@ -118,6 +136,7 @@ impl Application {
                 last_click: Window::Unhandled,
                 clipboard,
                 editor: Editor::Hex,
+                actions: vec![],
             },
             display: ScreenHandler::new()?,
             labels,
