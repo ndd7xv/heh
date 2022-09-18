@@ -1,7 +1,7 @@
 use std::cmp;
 
 use crate::{
-    app::{AppData, Nibble},
+    app::{Action, AppData, Nibble},
     label::LabelHandler,
     screen::ScreenHandler,
 };
@@ -129,7 +129,10 @@ impl KeyHandler for Editor {
         labels: &mut LabelHandler,
     ) {
         if app.offset > 0 {
-            app.contents.remove(app.offset - 1);
+            app.actions.push(Action::Backspace(
+                app.offset.saturating_sub(1),
+                app.contents.remove(app.offset - 1),
+            ));
             app.offset = app.offset.saturating_sub(1);
             labels.update_all(&app.contents[app.offset..]);
             adjust_offset(app, display, labels);
@@ -142,7 +145,7 @@ impl KeyHandler for Editor {
         labels: &mut LabelHandler,
     ) {
         if app.contents.len() > 1 {
-            app.contents.remove(app.offset);
+            app.actions.push(Action::Delete(app.offset, app.contents.remove(app.offset)));
             labels.update_all(&app.contents[app.offset..]);
             adjust_offset(app, display, labels);
         }
@@ -156,12 +159,22 @@ impl KeyHandler for Editor {
     ) {
         match *self {
             Self::Ascii => {
+                app.actions.push(Action::CharacterInput(
+                    app.offset,
+                    app.contents[app.offset],
+                    None,
+                ));
                 app.contents[app.offset] = c as u8;
                 app.offset = cmp::min(app.offset.saturating_add(1), app.contents.len() - 1);
                 labels.update_all(&app.contents[app.offset..]);
                 adjust_offset(app, display, labels);
             }
             Self::Hex => {
+                app.actions.push(Action::CharacterInput(
+                    app.offset,
+                    app.contents[app.offset],
+                    Some(app.nibble),
+                ));
                 if c.is_ascii_hexdigit() {
                     // This can probably be optimized...
                     match app.nibble {

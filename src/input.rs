@@ -12,7 +12,7 @@ use std::{
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
 use crate::{
-    app::{Application, Nibble},
+    app::{Action, Application, Nibble},
     label::LABEL_TITLES,
     windows::{PopupOutput, Window},
 };
@@ -115,6 +115,27 @@ pub(crate) fn handle_character_input(
                 app.data.hashed_contents = app.hash_contents();
 
                 app.labels.notification = String::from("Saved!");
+            }
+            'z' => {
+                if let Some(action) = app.data.actions.pop() {
+                    match action {
+                        Action::CharacterInput(offset, byte, nibble) => {
+                            app.data.offset = offset;
+                            if let Some(nibble) = nibble {
+                                app.data.nibble = nibble;
+                            }
+                            app.data.contents[offset] = byte;
+                        }
+                        Action::Backspace(offset, byte) => {
+                            app.data.contents.insert(offset, byte);
+                            app.data.offset = offset + 1;
+                        }
+                        Action::Delete(offset, byte) => {
+                            app.data.contents.insert(offset, byte);
+                            app.data.offset = offset;
+                        }
+                    }
+                }
             }
             _ => {}
         }
