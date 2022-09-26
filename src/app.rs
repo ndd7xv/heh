@@ -25,7 +25,7 @@ use crate::{
 ///
 /// For example, the first nibble in 0XF4 is 1111, or the F in hexadecimal. This is specified by
 /// [`Nibble::Beginning`]. The last four bits (or 4 in hex) would be specified by [`Nibble::End`].
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub(crate) enum Nibble {
     Beginning,
     End,
@@ -77,6 +77,15 @@ pub(crate) struct AppData {
 
     /// The last clicked (key down AND key up) label/window.
     pub(crate) last_click: Window,
+
+    /// A flag to enable dragging, only when a click is first valid.
+    pub(crate) drag_enabled: bool,
+
+    /// The most recent cursor location where a drag occured
+    pub(crate) last_drag: Option<usize>,
+
+    /// The nibble that was last hovered from the drag.
+    pub(crate) drag_nibble: Option<Nibble>,
 
     /// Copies label data to your clipboard.
     pub(crate) clipboard: Option<Clipboard>,
@@ -134,6 +143,9 @@ impl Application {
                 offset: 0,
                 nibble: Nibble::Beginning,
                 last_click: Window::Unhandled,
+                drag_enabled: false,
+                last_drag: None,
+                drag_nibble: None,
                 clipboard,
                 editor: Editor::Hex,
                 actions: vec![],

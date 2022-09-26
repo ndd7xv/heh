@@ -14,7 +14,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
 use crate::{
     app::{Action, Application, Nibble},
     label::LABEL_TITLES,
-    windows::{PopupOutput, Window},
+    windows::{adjust_offset, PopupOutput, Window},
 };
 
 /// Wrapper function that calls the corresponding [`KeyHandler`](crate::windows::KeyHandler) methods of
@@ -203,48 +203,57 @@ pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
         MouseEventKind::Down(MouseButton::Left) => {
             app.data.last_click = component;
             match app.data.last_click {
-                Window::Hex => {
-                    app.set_focused_window(Window::Hex);
-                    let hex = &app.display.comp_layouts.hex;
-                    // Identify the byte that was clicked on based on the relative position.
-                    let (mut rel_x, mut rel_y) = (mouse.column - hex.x, mouse.row - hex.y);
-                    // Account for the border of the viewport.
-                    if rel_y > 0 && rel_x > 0 && hex.height - 1 > rel_y && hex.width - 1 > rel_x {
-                        (rel_x, rel_y) = (rel_x, rel_y - 1);
-                        if rel_x % 3 != 0 {
-                            let new_pos = app.data.start_address
-                                + (rel_y as usize * app.display.comp_layouts.bytes_per_line)
-                                + (rel_x as usize / 3);
-                            if new_pos < app.data.contents.len() {
-                                app.data.offset = new_pos;
-                                if rel_x % 3 == 1 {
-                                    app.data.nibble = Nibble::Beginning;
-                                } else if rel_x % 3 == 2 {
-                                    app.data.nibble = Nibble::End;
-                                }
-                            }
-                        }
+                Window::Ascii => {
+                    if let Some((cursor_pos, _)) = handle_editor_click(Window::Ascii, app, mouse) {
+                        app.data.offset = cursor_pos;
                     }
                 }
-                Window::Ascii => {
-                    app.set_focused_window(Window::Ascii);
-                    let ascii = &app.display.comp_layouts.ascii;
-                    let (mut rel_x, mut rel_y) = (mouse.column - ascii.x, mouse.row - ascii.y);
-                    if rel_y > 0 && rel_x > 0 && ascii.height - 1 > rel_y && ascii.width - 1 > rel_x
+                Window::Hex => {
+                    if let Some((cursor_pos, nibble)) = handle_editor_click(Window::Hex, app, mouse)
                     {
-                        (rel_x, rel_y) = (rel_x - 1, rel_y - 1);
-                        let new_pos = app.data.start_address
-                            + (rel_y as usize * app.display.comp_layouts.bytes_per_line)
-                            + (rel_x as usize);
-                        if new_pos < app.data.contents.len() {
-                            app.data.offset = new_pos;
-                        }
+                        app.data.offset = cursor_pos;
+                        app.data.nibble = nibble.expect("Clicking on Hex should return a nibble!");
                     }
                 }
                 Window::Label(_)
                 | Window::Unhandled
                 | Window::JumpToByte
                 | Window::UnsavedChanges => {}
+            }
+        }
+        MouseEventKind::Drag(MouseButton::Left) => {
+            if app.data.drag_enabled {
+                match app.data.last_click {
+                    Window::Ascii => {
+                        if let Some((cursor_pos, _)) = handle_editor_drag(Window::Ascii, app, mouse)
+                        {
+                            if app.data.last_drag.is_none() {
+                                app.data.last_drag = Some(app.data.offset);
+                            }
+                            app.data.offset = cursor_pos;
+                            app.labels.update_all(&app.data.contents[app.data.offset..]);
+                            adjust_offset(&mut app.data, &mut app.display, &mut app.labels);
+                        }
+                    }
+                    Window::Hex => {
+                        if let Some((cursor_pos, nibble)) =
+                            handle_editor_drag(Window::Hex, app, mouse)
+                        {
+                            if app.data.last_drag.is_none() {
+                                app.data.last_drag = Some(app.data.offset);
+                                app.data.drag_nibble = Some(app.data.nibble);
+                            }
+                            app.data.offset = cursor_pos;
+                            app.data.nibble = nibble.unwrap();
+                            app.labels.update_all(&app.data.contents[app.data.offset..]);
+                            adjust_offset(&mut app.data, &mut app.display, &mut app.labels);
+                        }
+                    }
+                    Window::Label(_)
+                    | Window::Unhandled
+                    | Window::JumpToByte
+                    | Window::UnsavedChanges => {}
+                }
             }
         }
         MouseEventKind::Up(MouseButton::Left) => {
@@ -288,4 +297,179 @@ pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
         }
         _ => {}
     }
+}
+
+/// A wrapper around [`handle_cursor`] that does the additional things that come with a click.
+#[allow(clippy::cast_possible_truncation)]
+fn handle_editor_click(
+    window: Window,
+    app: &mut Application,
+    mut mouse: MouseEvent,
+) -> Option<(usize, Option<Nibble>)> {
+    app.set_focused_window(window);
+
+    let (editor, word_size) = match window {
+        Window::Ascii => (&app.display.comp_layouts.ascii, 1),
+        Window::Hex => (&app.display.comp_layouts.hex, 3),
+        _ => {
+            panic!("Trying to move cursor on unhandled window!")
+        }
+    };
+
+    // In the hex editor, a cursor click in between two bytes will select the first nibble of the
+    // latter one. In the case that we're at the end of the row, this is just a tweak so that the
+    // cursor is selected as the last nibble of the first byte.
+    let end_of_row = editor.x + app.display.comp_layouts.bytes_per_line as u16 * word_size;
+    if mouse.column == end_of_row {
+        mouse.column = end_of_row;
+    }
+    let res = handle_editor_cursor_action(window, app, mouse);
+    if res.is_some() {
+        // Reset the dragged highlighting.
+        app.data.last_drag = None;
+        app.data.drag_nibble = None;
+        app.data.drag_enabled = true;
+    } else {
+        app.data.drag_enabled = false;
+    }
+    res
+}
+
+/// A wrapper around [`handle_cursor`] that does the additional things that come with a drag.
+#[allow(clippy::cast_possible_truncation)]
+fn handle_editor_drag(
+    window: Window,
+    app: &mut Application,
+    mut mouse: MouseEvent,
+) -> Option<(usize, Option<Nibble>)> {
+    let (editor, word_size) = match window {
+        Window::Ascii => (&app.display.comp_layouts.ascii, 1),
+        Window::Hex => (&app.display.comp_layouts.hex, 3),
+        _ => {
+            panic!("Trying to move cursor on unhandled window!")
+        }
+    };
+
+    let click_past_contents = app.display.comp_layouts.bytes_per_line
+        * app.display.comp_layouts.lines_per_screen
+        + app.data.start_address
+        > app.data.contents.len();
+
+    let mut editor_last_col = app.display.comp_layouts.bytes_per_line as u16;
+    let mut end_of_row = 1 + editor.x + (editor_last_col * word_size);
+
+    // Allows cursor x position to be tracked outside of the initially selected viewport when
+    // dragged. Quickly dragging to the right will select everything to the end of the row.
+    if mouse.column <= editor.left() {
+        mouse.column = editor.x + 1;
+    } else if mouse.column >= end_of_row {
+        mouse.column = end_of_row;
+    }
+
+    // Allows the view port to be moved up and down depending on the cursor has been dragged way
+    // above or below it.
+    let editor_bottom_row = editor.top()
+        + 1
+        + cmp::min(
+            app.display.comp_layouts.lines_per_screen,
+            (app.data.contents.len() - app.data.start_address)
+                / app.display.comp_layouts.bytes_per_line,
+        ) as u16;
+    if mouse.row == 0 {
+        mouse.row = 1;
+        if let Some(mut result) = handle_editor_cursor_action(window, app, mouse) {
+            if let Some(new_y) = result.0.checked_sub(app.display.comp_layouts.bytes_per_line) {
+                result.0 = new_y;
+                return Some(result);
+            }
+            return Some(result);
+        }
+        None
+    } else if mouse.row > editor_bottom_row {
+        // When the mouse is dragged past the end of the contents, we need to update drag, but not
+        // change the start address/scroll.
+        if click_past_contents {
+            editor_last_col = ((app.data.contents.len() - app.data.start_address)
+                % app.display.comp_layouts.bytes_per_line) as u16;
+            end_of_row = 1 + editor.x + (editor_last_col * word_size);
+            if mouse.column >= end_of_row {
+                mouse.column = end_of_row;
+            }
+        }
+        mouse.row = editor_bottom_row - if click_past_contents { 0 } else { 1 };
+        if let Some(mut result) = handle_editor_cursor_action(window, app, mouse) {
+            if let Some(new_y) = result.0.checked_add(app.display.comp_layouts.bytes_per_line) {
+                if new_y < app.data.contents.len() {
+                    result.0 = new_y;
+                    return Some(result);
+                }
+            }
+            return Some(result);
+        }
+        None
+    } else {
+        handle_editor_cursor_action(window, app, mouse)
+    }
+}
+
+/// Determines if the relative cursor/drag position should be updated.
+#[allow(clippy::cast_possible_truncation)]
+fn handle_editor_cursor_action(
+    window: Window,
+    app: &mut Application,
+    mouse: MouseEvent,
+) -> Option<(usize, Option<Nibble>)> {
+    let (editor, word_size) = match window {
+        Window::Ascii => (&app.display.comp_layouts.ascii, 1),
+        Window::Hex => (&app.display.comp_layouts.hex, 3),
+        _ => {
+            panic!("Trying to move cursor on unhandled window!")
+        }
+    };
+    // Identify the byte that was clicked on based on the relative position.
+    let (mut rel_x, mut rel_y) =
+        (mouse.column.saturating_sub(editor.x), mouse.row.saturating_sub(editor.y));
+
+    // Do not consider a click to the space after the last byte of a full viewport to be a click.
+    // The space after the last byte of every row is generally considered a click for the first
+    // byte on the next row for dragging purposes.
+    if rel_y == editor.height - 2
+        && rel_x
+            > app.display.comp_layouts.bytes_per_line as u16 * word_size
+                - if window == Window::Hex { 1 } else { 0 }
+    {
+        return None;
+    }
+
+    // Account for the border of the viewport and only allow clicks to the end of the last
+    // character.
+    if rel_y > 0 && rel_x > 0 && editor.height - 1 > rel_y && editor.width - 1 > rel_x {
+        match window {
+            Window::Ascii => {
+                (rel_x, rel_y) = (rel_x - 1, rel_y - 1);
+                let content_pos = app.data.start_address
+                    + (rel_y as usize * app.display.comp_layouts.bytes_per_line)
+                    + (rel_x as usize);
+                if content_pos < app.data.contents.len() {
+                    return Some((content_pos, None));
+                }
+            }
+            Window::Hex => {
+                (rel_x, rel_y) = (rel_x, rel_y - 1);
+                let content_pos = app.data.start_address
+                    + (rel_y as usize * app.display.comp_layouts.bytes_per_line)
+                    + (rel_x as usize / 3);
+                if content_pos < app.data.contents.len() {
+                    if rel_x % 3 < 2 {
+                        return Some((content_pos, Some(Nibble::Beginning)));
+                    }
+                    return Some((content_pos, Some(Nibble::End)));
+                }
+            }
+            _ => {
+                panic!()
+            }
+        }
+    }
+    None
 }

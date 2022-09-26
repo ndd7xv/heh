@@ -161,99 +161,32 @@ impl ScreenHandler {
         window.dimensions().map_or_else(Rect::default, |dimensions| popup_rect(dimensions, frame))
     }
 
+    /// Generates all the visuals of the file contents to be displayed to user by calling
+    /// [`generate_hex`](generate_hex) and [`generate_ascii`](generate_ascii).
     fn generate_text(
-        contents: &[u8],
-        start_address: usize,
-        offset: usize,
+        app_info: &mut AppData,
         bytes_per_line: usize,
         lines_per_screen: usize,
-        nibble: Nibble,
     ) -> (Text, Text, Text) {
-        let content_lines = contents.len() / bytes_per_line + 1;
-        let start_row = start_address / bytes_per_line;
+        let content_lines = app_info.contents.len() / bytes_per_line + 1;
+        let start_row = app_info.start_address / bytes_per_line;
 
         // Generate address lines
-        let mut address_text = (0..cmp::min(lines_per_screen, content_lines - start_row))
-            .map(|i| Spans::from(format!("{:08X?}\n", (start_address + i * bytes_per_line))))
-            .collect::<Vec<Spans>>();
-
-        // Display hex - chunks the bytes into rows and formats them into hex
-        let mut hex_text = contents[start_address..]
-            .chunks(bytes_per_line)
-            .take(lines_per_screen)
-            .map(|chunk| {
-                Spans::from(
-                    chunk
-                        .iter()
-                        .map(|&byte| {
-                            Span::styled(
-                                format!("{byte:02X?} "),
-                                Style::default().fg(*get_color(byte)),
-                            )
-                        })
-                        .collect::<Vec<Span>>(),
-                )
+        let address_text = (0..cmp::min(lines_per_screen, content_lines - start_row))
+            .map(|i| {
+                let row_address = app_info.start_address + i * bytes_per_line;
+                let mut span = Span::from(format!("{:08X?}\n", row_address));
+                // Highlight the address row that the cursor is in for visibility
+                if (row_address..row_address + bytes_per_line).contains(&app_info.offset) {
+                    span.style = span.style.fg(Color::Black).bg(Color::White);
+                }
+                Spans::from(span)
             })
             .collect::<Vec<Spans>>();
 
-        // Display ASCII bytes
-        let mut ascii_text = contents[start_address..]
-            .chunks(bytes_per_line)
-            .take(lines_per_screen)
-            .map(|chunk| {
-                Spans::from(
-                    chunk
-                        .iter()
-                        .map(|&byte| {
-                            Span::styled(as_str(byte), Style::default().fg(*get_color(byte)))
-                        })
-                        .collect::<Vec<Span>>(),
-                )
-            })
-            .collect::<Vec<Spans>>();
+        let hex_text = generate_hex(app_info, bytes_per_line, lines_per_screen);
 
-        let cursor_row = offset / bytes_per_line;
-        let cursor_col = offset % bytes_per_line;
-
-        // Style the selected byte that the cursor is on
-        let cursor_byte = contents[offset];
-        if cursor_row >= start_row && cursor_row < start_row + lines_per_screen {
-            // Highlight the address row that the cursor is in for visibility
-            address_text[cursor_row - start_row].0[0].style =
-                Style::default().bg(Color::White).fg(Color::Black);
-
-            // Highlight the selected nibble in the Hex table
-            let byte = format!("{:02X?}", cursor_byte);
-            let mut byte = byte.chars();
-            hex_text[cursor_row - start_row].0[cursor_col] = Span::styled(
-                byte.next().unwrap().to_string(),
-                if nibble == Nibble::Beginning {
-                    Style::default().fg(*get_color(cursor_byte)).bg(COLOR_NULL)
-                } else {
-                    Style::default().fg(*get_color(cursor_byte))
-                },
-            );
-            hex_text[cursor_row - start_row].0.insert(
-                cursor_col + 1,
-                Span::styled(
-                    byte.next().unwrap().to_string(),
-                    if nibble == Nibble::End {
-                        Style::default().fg(*get_color(cursor_byte)).bg(COLOR_NULL)
-                    } else {
-                        Style::default().fg(*get_color(cursor_byte))
-                    },
-                ),
-            );
-            hex_text[cursor_row - start_row]
-                .0
-                .insert(cursor_col + 2, Span::styled(" ", Style::default()));
-
-            // Highlight the selected byte in the ASCII table
-            ascii_text[cursor_row - start_row].0[cursor_col] = Span::styled(
-                as_str(cursor_byte),
-                Style::default().fg(*get_color(cursor_byte)).bg(COLOR_NULL),
-            );
-        }
+        let ascii_text = generate_ascii(app_info, bytes_per_line, lines_per_screen);
 
         (address_text.into(), hex_text.into(), ascii_text.into())
     }
@@ -302,12 +235,9 @@ impl ScreenHandler {
             }
 
             let (address_text, hex_text, ascii_text) = Self::generate_text(
-                &app_info.contents,
-                app_info.start_address,
-                app_info.offset,
+                app_info,
                 self.comp_layouts.bytes_per_line,
                 self.comp_layouts.lines_per_screen,
-                app_info.nibble,
             );
 
             // Render Line Numbers
@@ -362,6 +292,121 @@ impl ScreenHandler {
         })?;
         Ok(())
     }
+}
+
+/// Display hex bytes with correct highlighting and colors by chunking the bytes into rows and
+/// formatting them into hex.
+fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usize) -> Vec<Spans> {
+    app_info.contents[app_info.start_address..]
+        .chunks(bytes_per_line)
+        .take(lines_per_screen)
+        .enumerate()
+        .map(|(row, chunk)| {
+            let spans = chunk
+                .iter()
+                .enumerate()
+                .flat_map(|(col, &byte)| {
+                    // We don't want an extra space at the end of each row.
+                    if col < bytes_per_line - 1 {
+                        format!("{byte:02X?} ")
+                    } else {
+                        format!("{byte:02X?}")
+                    }
+                    .chars()
+                    .enumerate()
+                    .map(|(nibble_pos, c)| {
+                        let byte_pos = app_info.start_address + (row * bytes_per_line) + col;
+                        let mut span =
+                            Span::styled(c.to_string(), Style::default().fg(*get_color(byte)));
+                        let is_cursor = byte_pos == app_info.offset
+                            && ((nibble_pos == 0 && app_info.nibble == Nibble::Beginning)
+                                || (nibble_pos == 1 && app_info.nibble == Nibble::End));
+
+                        // Determine if the specified nibble (or space) should have a
+                        // lighter foreground because it is in the user's dragged range.
+                        // The logic is more complicated for hex because users can select
+                        // a single nibble from a byte.
+                        let mut in_drag = false;
+                        if let Some(drag) = app_info.last_drag {
+                            let drag_nibble = app_info.drag_nibble.unwrap_or(Nibble::End);
+                            if !(drag == app_info.offset && app_info.nibble == drag_nibble) {
+                                let mut start = drag;
+                                let mut end = app_info.offset;
+                                let mut start_nibble = drag_nibble;
+                                let mut end_nibble = app_info.nibble;
+
+                                if app_info.offset < drag {
+                                    start = app_info.offset;
+                                    end = drag;
+                                    start_nibble = app_info.nibble;
+                                    end_nibble = drag_nibble;
+                                }
+
+                                // The only time the starting byte would not entirely be in
+                                // drag range is when the first nibble is not highlighted.
+                                // Similarly, the last nibble is only partially highlighted
+                                // when the second (and last) nibble is not selected.
+                                if byte_pos == start {
+                                    in_drag = !(nibble_pos == 0 && start_nibble == Nibble::End);
+                                }
+                                if byte_pos == end {
+                                    in_drag |= !(nibble_pos == 1
+                                        && end_nibble == Nibble::Beginning)
+                                        && nibble_pos != 2;
+                                }
+                                if start == end && nibble_pos == 2 {
+                                    in_drag = false;
+                                } else if end - start > 1 {
+                                    in_drag |= (start + 1..end).contains(&byte_pos);
+                                }
+                            }
+                        }
+                        if is_cursor || in_drag {
+                            span.style = span.style.bg(COLOR_NULL);
+                        }
+                        span
+                    })
+                    .collect::<Vec<Span>>()
+                })
+                .collect::<Vec<Span>>();
+            Spans::from(spans)
+        })
+        .collect::<Vec<Spans>>()
+}
+
+/// Display ASCII bytes with correct highlighting and colors.
+fn generate_ascii(
+    app_info: &AppData,
+    bytes_per_line: usize,
+    lines_per_screen: usize,
+) -> Vec<Spans> {
+    app_info.contents[app_info.start_address..]
+        .chunks(bytes_per_line)
+        .take(lines_per_screen)
+        .enumerate()
+        .map(|(row, chunk)| {
+            Spans::from(
+                chunk
+                    .iter()
+                    .enumerate()
+                    .map(|(col, &byte)| {
+                        let byte_pos = app_info.start_address + (row * bytes_per_line) + col;
+                        let mut span =
+                            Span::styled(as_str(byte), Style::default().fg(*get_color(byte)));
+                        // Highlight the selected byte in the ASCII table
+                        let last_drag = app_info.last_drag.unwrap_or(app_info.offset);
+                        if byte_pos == app_info.offset
+                            || (app_info.offset..=last_drag).contains(&byte_pos)
+                            || (last_drag..=app_info.offset).contains(&byte_pos)
+                        {
+                            span.style = span.style.bg(COLOR_NULL);
+                        }
+                        span
+                    })
+                    .collect::<Vec<Span>>(),
+            )
+        })
+        .collect::<Vec<Spans>>()
 }
 
 /// Generates the dimensions of an x by y popup that is centered in Rect r.

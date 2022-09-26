@@ -23,6 +23,8 @@ impl KeyHandler for Editor {
         }
     }
     fn left(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
+        app.last_drag = None;
+        app.drag_nibble = None;
         match self {
             Self::Ascii => {
                 app.offset = app.offset.saturating_sub(1);
@@ -40,6 +42,8 @@ impl KeyHandler for Editor {
         }
     }
     fn right(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
+        app.last_drag = None;
+        app.drag_nibble = None;
         match self {
             Self::Ascii => {
                 app.offset = cmp::min(app.offset.saturating_add(1), app.contents.len() - 1);
@@ -57,6 +61,8 @@ impl KeyHandler for Editor {
         }
     }
     fn up(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
+        app.last_drag = None;
+        app.drag_nibble = None;
         if let Some(new_offset) = app.offset.checked_sub(display.comp_layouts.bytes_per_line) {
             app.offset = new_offset;
             labels.update_all(&app.contents[app.offset..]);
@@ -64,6 +70,8 @@ impl KeyHandler for Editor {
         }
     }
     fn down(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
+        app.last_drag = None;
+        app.drag_nibble = None;
         if let Some(new_offset) = app.offset.checked_add(display.comp_layouts.bytes_per_line) {
             if new_offset < app.contents.len() {
                 app.offset = new_offset;
@@ -73,6 +81,8 @@ impl KeyHandler for Editor {
         }
     }
     fn home(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
+        app.last_drag = None;
+        app.drag_nibble = None;
         let bytes_per_line = display.comp_layouts.bytes_per_line;
         app.offset = app.offset / bytes_per_line * bytes_per_line;
         labels.update_all(&app.contents[app.offset..]);
@@ -83,6 +93,8 @@ impl KeyHandler for Editor {
         }
     }
     fn end(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
+        app.last_drag = None;
+        app.drag_nibble = None;
         let bytes_per_line = display.comp_layouts.bytes_per_line;
         app.offset = cmp::min(
             app.offset + (bytes_per_line - 1 - app.offset % bytes_per_line),
@@ -101,6 +113,8 @@ impl KeyHandler for Editor {
         display: &mut ScreenHandler,
         labels: &mut LabelHandler,
     ) {
+        app.last_drag = None;
+        app.drag_nibble = None;
         app.offset = app.offset.saturating_sub(
             display.comp_layouts.bytes_per_line * display.comp_layouts.lines_per_screen,
         );
@@ -113,6 +127,8 @@ impl KeyHandler for Editor {
         display: &mut ScreenHandler,
         labels: &mut LabelHandler,
     ) {
+        app.last_drag = None;
+        app.drag_nibble = None;
         app.offset = cmp::min(
             app.offset.saturating_add(
                 display.comp_layouts.bytes_per_line * display.comp_layouts.lines_per_screen,
@@ -157,6 +173,8 @@ impl KeyHandler for Editor {
         labels: &mut LabelHandler,
         c: char,
     ) {
+        app.last_drag = None;
+        app.drag_nibble = None;
         match *self {
             Self::Ascii => {
                 app.actions.push(Action::CharacterInput(
