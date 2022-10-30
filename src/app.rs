@@ -181,6 +181,22 @@ impl Application {
         Ok(())
     }
 
+    /// Copies text to the users cliipboard. Prints the contents of what was copied up to 5
+    /// characters.
+    pub(crate) fn copy(&mut self, text: String) -> Result<(), Box<dyn Error>> {
+        if let Some(clipboard) = self.data.clipboard.as_mut() {
+            let mut copy_display = text.chars().take(5).collect::<String>();
+            if text.chars().count() > 5 {
+                copy_display.push_str("...");
+            }
+            self.labels.notification = format!("{} copied!", copy_display);
+            clipboard.set_text(text)?;
+        } else {
+            self.labels.notification = String::from("Can't find clipboard!");
+        }
+        Ok(())
+    }
+
     /// Handles all forms of user input. This calls out to code in [input], which uses
     /// [Application's `key_handler` method](Application::key_handler) to determine what to do for
     /// key input.
