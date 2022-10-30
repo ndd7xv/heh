@@ -328,7 +328,7 @@ fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usi
                         // a single nibble from a byte.
                         let mut in_drag = false;
                         if let Some(drag) = app_info.last_drag {
-                            let drag_nibble = app_info.drag_nibble.unwrap_or(Nibble::End);
+                            let drag_nibble = app_info.drag_nibble.unwrap_or(app_info.nibble);
                             if !(drag == app_info.offset && app_info.nibble == drag_nibble) {
                                 let mut start = drag;
                                 let mut end = app_info.offset;

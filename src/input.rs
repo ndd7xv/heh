@@ -6,13 +6,15 @@
 use std::{
     cmp,
     error::Error,
-    io::{Seek, SeekFrom, Write},
+    fmt::Write,
+    io::{Seek, SeekFrom, Write as FileWrite},
 };
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 
 use crate::{
     app::{Action, Application, Nibble},
+    byte::as_str,
     label::LABEL_TITLES,
     windows::{adjust_offset, PopupOutput, Window},
 };
@@ -92,6 +94,9 @@ pub(crate) fn handle_character_input(
 ) -> Result<bool, Box<dyn Error>> {
     if modifiers == KeyModifiers::CONTROL {
         match char {
+            'c' => {
+                copy_selection(app, false)?;
+            }
             'j' => {
                 if app.key_handler.is_focusing(Window::JumpToByte) {
                     app.focus_editor();
@@ -117,27 +122,13 @@ pub(crate) fn handle_character_input(
                 app.labels.notification = String::from("Saved!");
             }
             'z' => {
-                if let Some(action) = app.data.actions.pop() {
-                    match action {
-                        Action::CharacterInput(offset, byte, nibble) => {
-                            app.data.offset = offset;
-                            if let Some(nibble) = nibble {
-                                app.data.nibble = nibble;
-                            }
-                            app.data.contents[offset] = byte;
-                        }
-                        Action::Backspace(offset, byte) => {
-                            app.data.contents.insert(offset, byte);
-                            app.data.offset = offset + 1;
-                        }
-                        Action::Delete(offset, byte) => {
-                            app.data.contents.insert(offset, byte);
-                            app.data.offset = offset;
-                        }
-                    }
-                }
+                undo(app);
             }
             _ => {}
+        }
+    } else if modifiers == KeyModifiers::CONTROL | KeyModifiers::ALT {
+        if char == 'c' {
+            copy_selection(app, true)?;
         }
     } else if modifiers == KeyModifiers::ALT {
         match char {
@@ -192,6 +183,86 @@ pub(crate) fn handle_character_input(
         }
     }
     Ok(true)
+}
+
+fn undo(app: &mut Application) {
+    if let Some(action) = app.data.actions.pop() {
+        match action {
+            Action::CharacterInput(offset, byte, nibble) => {
+                app.data.offset = offset;
+                if let Some(nibble) = nibble {
+                    app.data.nibble = nibble;
+                }
+                app.data.contents[offset] = byte;
+            }
+            Action::Backspace(offset, byte) => {
+                app.data.contents.insert(offset, byte);
+                app.data.offset = offset + 1;
+            }
+            Action::Delete(offset, byte) => {
+                app.data.contents.insert(offset, byte);
+                app.data.offset = offset;
+            }
+        }
+    }
+}
+
+fn copy_selection(app: &mut Application, copy_other: bool) -> Result<(), Box<dyn Error>> {
+    if (app.key_handler.is_focusing(Window::Hex) && !copy_other)
+        || (app.key_handler.is_focusing(Window::Ascii) && copy_other)
+    {
+        if let Some(drag) = app.data.last_drag {
+            let mut text = app.data.contents
+                [cmp::min(drag, app.data.offset)..=cmp::max(drag, app.data.offset)]
+                .iter()
+                .fold(String::new(), |mut acc, byte| {
+                    write!(acc, "{:02X?} ", byte).expect("Should append to string!");
+                    acc
+                });
+            // Remove the nibbles at the end/beginning if they indicate we should split
+            // it in half.
+            let mut start_nibble = app.data.drag_nibble.unwrap_or(Nibble::Beginning);
+            let mut end_nibble = app.data.nibble;
+
+            if app.data.offset < drag {
+                start_nibble = app.data.nibble;
+                end_nibble = app.data.drag_nibble.unwrap_or(Nibble::End);
+            }
+
+            if end_nibble == Nibble::Beginning {
+                text = text[..text.len() - 2].to_string();
+            }
+            if start_nibble == Nibble::End {
+                text = text[1..].to_string();
+            }
+            app.copy(text)?;
+        } else {
+            let nibbles: Vec<char> =
+                format!("{:02X?}", app.data.contents[app.data.offset]).chars().collect();
+            app.copy(if app.data.nibble == Nibble::Beginning {
+                nibbles[0].to_string()
+            } else {
+                nibbles[1].to_string()
+            })?;
+        }
+    } else if (app.key_handler.is_focusing(Window::Ascii) && !copy_other)
+        || (app.key_handler.is_focusing(Window::Hex) && copy_other)
+    {
+        if let Some(drag) = app.data.last_drag {
+            app.copy(
+                app.data.contents
+                    [cmp::min(drag, app.data.offset)..=cmp::max(drag, app.data.offset)]
+                    .iter()
+                    .fold(String::new(), |mut acc, byte| {
+                        acc.push_str(&as_str(*byte));
+                        acc
+                    }),
+            )?;
+        } else {
+            app.copy(as_str(app.data.contents[app.data.offset]))?;
+        }
+    };
+    Ok(())
 }
 
 /// Handles the mouse input, which consists of things like scrolling and focusing components
@@ -261,12 +332,8 @@ pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
                 Window::Label(i) => {
                     if app.data.last_click == component {
                         // Put string into clipboard
-                        if let Some(clipboard) = app.data.clipboard.as_mut() {
-                            clipboard.set_text(app.labels[LABEL_TITLES[i]].clone()).unwrap();
-                            app.labels.notification = format!("{} copied!", LABEL_TITLES[i]);
-                        } else {
-                            app.labels.notification = String::from("Can't find clipboard!");
-                        }
+                        app.copy(app.labels[LABEL_TITLES[i]].clone())
+                            .expect("Copying should be properly handled!");
                     }
                 }
                 Window::Hex
@@ -327,7 +394,6 @@ fn handle_editor_click(
     if res.is_some() {
         // Reset the dragged highlighting.
         app.data.last_drag = None;
-        app.data.drag_nibble = None;
         app.data.drag_enabled = true;
     } else {
         app.data.drag_enabled = false;
