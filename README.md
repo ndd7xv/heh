@@ -2,7 +2,7 @@
 
 The HEx Helper is a cross-platform terminal UI used for modifying file data in hex or ASCII. It aims to replicate some of the look of hexyl while functionaly acting like a terminal UI version of GHex.
 
-__heh is currently in alpha - it's not ready to be used in any production manner. Notably, it does not store backups if killed or crashing and there is no undo option after deleting a byte.__
+__heh is currently in alpha - it's not ready to be used in any production manner. Notably, it does not store backups if killed or crashing.__
 
 ![screenshot of heh](demo.png)
 
@@ -18,14 +18,18 @@ From `heh --help`:
 ```
 ...
 Terminal UI Commands:
-    ALT=                Increase the stream length by 1
-    ALT-                Decrease the stream length by 1
-    CNTRLs              Save
-    CNTRLq              Quit
-    CNTRLj              Jump to Byte
+    ALT =               Increase the stream length by 1
+    ALT -               Decrease the stream length by 1
+    CTRL c              Copy Selection in Current Editor (Hex or ASCII)
+    CTRL ALT c          Copy Selection in Other Editor
+    CTRL j              Jump to Byte
+    CTRL q              Quit
+    CTRL s              Save
+    CTRL z              Undo
 
 Left-clicking on a label will copy the contents to the clipboard.
-Left-clicking on the ASCII or hex table will focus it.
+Left-clicking on the ASCII or hex table will focus it. Dragging the click will
+select the specified text.
 
 Zooming in and out will change the size of the components.
 
@@ -34,14 +38,7 @@ USAGE:
 
 ARGS:
     <FILE>
-            
-
-OPTIONS:
-    -h, --help
-            Print help information
-
-    -V, --version
-            Print version information
+...
 
 ```
 # Contributing
