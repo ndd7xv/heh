@@ -17,6 +17,7 @@ mod input;
 mod label;
 mod screen;
 mod windows;
+mod decoder;
 
 use clap::{arg, command};
 
