@@ -1,5 +1,6 @@
 use std::str::from_utf8;
 
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum CharType {
     Ascii,
     Unicode(usize),
@@ -36,19 +37,21 @@ impl<'a> Iterator for LossyUTF8Decoder<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.cursor < self.bytes.len() {
             let info = match self.bytes[self.cursor] {
-                // TODO test ranges
                 0x00..=0x7F => CharType::Ascii,
                 0xC0..=0xDF => CharType::Unicode(2),
                 0xE0..=0xEF => CharType::Unicode(3),
                 0xF0..=0xF7 => CharType::Unicode(4),
-                _ => CharType::Unknown,
+                _ => {
+                    self.cursor += 1;
+                    return Some(('�', CharType::Unknown));
+                }
             };
 
             let new_cursor = self.bytes.len().min(self.cursor + info.size());
             let chunk = &self.bytes[self.cursor..new_cursor];
 
             if let Ok(mut chars) = from_utf8(chunk).map(str::chars) {
-                let char = chars.next().unwrap();
+                let char = chars.next().expect("the string must contain exactly one character");
                 debug_assert!(chars.next().is_none(), "the string must contain exactly one character");
                 self.cursor += info.size();
                 Some((char, info))
@@ -89,5 +92,21 @@ impl<'a> Iterator for ByteAlignedDecoder<'a> {
             self.to_fill -= 1;
             Some('•')
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_decoder_utf8() {
+        let bytes = b"text, controls \n \r\n, space \t, unicode \xC3\xA4h \xC3\xA0 la \xF0\x9F\x92\xA9, null \x00, invalid \xC0\xF8\xEE";
+        let decoder = ByteAlignedDecoder::from(LossyUTF8Decoder::from(&bytes[..]));
+        let characters: Vec<_> = decoder.collect();
+        let decoded = String::from_iter(&characters);
+
+        assert_eq!(bytes.len(), characters.len());
+        assert_eq!(&decoded, "text, controls \n \r\n, space \t, unicode ä•h à• la 💩•••, null \0, invalid ���");
     }
 }
