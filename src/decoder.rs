@@ -20,6 +20,40 @@ impl CharType {
 
 pub(crate) trait LossyDecoder<'a>: From<&'a [u8]> + Iterator<Item=(char, CharType)> {}
 
+pub(crate) struct LossyASCIIDecoder<'a> {
+    bytes: &'a [u8],
+    cursor: usize,
+}
+
+impl<'a> From<&'a [u8]> for LossyASCIIDecoder<'a> {
+    fn from(bytes: &'a [u8]) -> Self {
+        Self {
+            bytes,
+            cursor: 0,
+        }
+    }
+}
+
+impl<'a> Iterator for LossyASCIIDecoder<'a> {
+    type Item = (char, CharType);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.cursor < self.bytes.len() {
+            let byte = self.bytes[self.cursor];
+            self.cursor += 1;
+            if byte.is_ascii() {
+                Some((byte as char, CharType::Ascii))
+            } else {
+                Some(('�', CharType::Unknown))
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a> LossyDecoder<'a> for LossyASCIIDecoder<'a> {}
+
 pub(crate) struct LossyUTF8Decoder<'a> {
     bytes: &'a [u8],
     cursor: usize,
@@ -106,6 +140,17 @@ impl<'a, D: LossyDecoder<'a>> Iterator for ByteAlignedDecoder<'a, D> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_decoder_ascii() {
+        let bytes = b"text, controls \n \r\n, space \t, unicode \xC3\xA4h \xC3\xA0 la \xF0\x9F\x92\xA9, null \x00, invalid \xC0\xF8\xEE";
+        let decoder = ByteAlignedDecoder::from(LossyASCIIDecoder::from(&bytes[..]));
+        let characters: Vec<_> = decoder.collect();
+        let decoded = String::from_iter(&characters);
+
+        assert_eq!(bytes.len(), characters.len());
+        assert_eq!(&decoded, "text, controls \n \r\n, space \t, unicode ��h �� la ����, null \0, invalid ���");
+    }
 
     #[test]
     fn test_decoder_utf8() {
