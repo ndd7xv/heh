@@ -7,10 +7,12 @@
 
 use std::{error::Error, fs::OpenOptions, io, process};
 
-use clap::{arg, command};
+use clap::{Arg, arg_enum, command, value_t};
 use crossterm::tty::IsTty;
 
 use app::Application;
+
+use crate::decoder::Encoding;
 
 mod app;
 mod input;
@@ -49,25 +51,53 @@ Left-clicking on the ASCII or hex table will focus it.
 
 Zooming in and out will change the size of the components.";
 
+
+arg_enum! {
+    #[derive(Copy, Clone, Debug)]
+    pub enum EncodingOption {
+        Ascii,
+        Utf8,
+    }
+}
+
+impl From<EncodingOption> for Encoding {
+    fn from(encoding: EncodingOption) -> Self {
+        match encoding {
+            EncodingOption::Ascii => Encoding::Ascii,
+            EncodingOption::Utf8 => Encoding::Utf8,
+        }
+    }
+}
+
 /// Opens the specified file, creates a new application and runs it!
 fn main() -> Result<(), Box<dyn Error>> {
     let matches = command!()
         .about(ABOUT)
         .long_about(LONG_ABOUT)
-        .arg(arg!([FILE]).required(true))
+        .arg(Arg::new("Encoding")
+            .help("Encoding used for text editor")
+            .short('e')
+            .long("encoding")
+            .required(false)
+            .case_insensitive(true)
+            .possible_values(&EncodingOption::variants())
+            .default_value("Ascii"))
+        .arg(Arg::new("FILE")
+            .required(true))
         .get_matches();
-
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(matches.get_one::<String>("FILE").unwrap())?;
 
     if !io::stdout().is_tty() {
         eprintln!("Stdout is not a TTY device.");
         process::exit(1);
     }
 
-    let mut app = Application::new(file)?;
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(matches.get_one::<String>("FILE").unwrap())?;
+    let encoding = value_t!(matches, "Encoding", EncodingOption)?;
+
+    let mut app = Application::new(file, encoding.into())?;
     app.run()?;
 
     Ok(())

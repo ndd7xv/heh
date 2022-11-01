@@ -18,7 +18,7 @@ use tui::{
 
 use crate::{
     app::{AppData, Nibble},
-    decoder::{ByteAlignedDecoder, Encoding},
+    decoder::ByteAlignedDecoder,
     label::{LABEL_TITLES, LabelHandler},
     windows::{editor::Editor, KeyHandler, Window},
 };
@@ -297,7 +297,7 @@ fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usi
         .map(|(row, chunk)| {
             let spans = chunk
                 .iter()
-                .zip(ByteAlignedDecoder::new(chunk, Encoding::Utf8))
+                .zip(ByteAlignedDecoder::new(chunk, app_info.encoding))
                 .enumerate()
                 .flat_map(|(col, (&byte, character))| {
                     // We don't want an extra space at the end of each row.
@@ -380,7 +380,7 @@ fn generate_decoded(
         .enumerate()
         .map(|(row, chunk)| {
             Spans::from(
-                ByteAlignedDecoder::new(chunk, Encoding::Utf8)
+                ByteAlignedDecoder::new(chunk, app_info.encoding)
                     .enumerate()
                     .map(|(col, character)| {
                         let byte_pos = app_info.start_address + (row * bytes_per_line) + col;

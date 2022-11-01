@@ -115,7 +115,7 @@ impl From<RichChar> for char {
 
 impl From<&RichChar> for char {
     fn from(rich_char: &RichChar) -> Self {
-        rich_char.character.clone()
+        rich_char.character
     }
 }
 
