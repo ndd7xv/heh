@@ -130,26 +130,25 @@ impl<'a, D: Iterator<Item=(char, CharType)>> Iterator for ByteAlignedDecoder<D> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    const TEST_BYTES: &[u8] = b"text, controls \n \r\n, space \t, unicode \xC3\xA4h \xC3\xA0 la \xF0\x9F\x92\xA9, null \x00, invalid \xC0\xF8\xEE";
 
     #[test]
     fn test_decoder_ascii() {
-        let bytes = b"text, controls \n \r\n, space \t, unicode \xC3\xA4h \xC3\xA0 la \xF0\x9F\x92\xA9, null \x00, invalid \xC0\xF8\xEE";
-        let decoder = ByteAlignedDecoder::from(LossyASCIIDecoder::from(&bytes[..]));
+        let decoder = ByteAlignedDecoder::from(LossyASCIIDecoder::from(TEST_BYTES));
         let characters: Vec<_> = decoder.collect();
         let decoded = String::from_iter(&characters);
 
-        assert_eq!(bytes.len(), characters.len());
+        assert_eq!(TEST_BYTES.len(), characters.len());
         assert_eq!(&decoded, "text, controls \n \r\n, space \t, unicode ��h �� la ����, null \0, invalid ���");
     }
 
     #[test]
     fn test_decoder_utf8() {
-        let bytes = b"text, controls \n \r\n, space \t, unicode \xC3\xA4h \xC3\xA0 la \xF0\x9F\x92\xA9, null \x00, invalid \xC0\xF8\xEE";
-        let decoder = ByteAlignedDecoder::from(LossyUTF8Decoder::from(&bytes[..]));
+        let decoder = ByteAlignedDecoder::from(LossyUTF8Decoder::from(TEST_BYTES));
         let characters: Vec<_> = decoder.collect();
         let decoded = String::from_iter(&characters);
 
-        assert_eq!(bytes.len(), characters.len());
+        assert_eq!(TEST_BYTES.len(), characters.len());
         assert_eq!(&decoded, "text, controls \n \r\n, space \t, unicode ä•h à• la 💩•••, null \0, invalid ���");
     }
 }
