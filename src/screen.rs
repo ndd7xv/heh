@@ -18,7 +18,7 @@ use tui::{
 
 use crate::{
     app::{AppData, Nibble},
-    decoder::{Decoder, LossyUTF8Decoder},
+    decoder::{ByteAlignedDecoder, LossyUTF8Decoder},
     label::{LABEL_TITLES, LabelHandler},
     windows::{editor::Editor, KeyHandler, Window},
 };
@@ -383,11 +383,11 @@ fn generate_decoded_text(
             Spans::from(
                 chunk
                     .iter()
-                    .zip(Decoder::from(LossyUTF8Decoder::from_bytes(chunk)))
+                    .zip(ByteAlignedDecoder::from(LossyUTF8Decoder::from(chunk)))
                     .enumerate()
-                    .map(|(col, (&byte, string))| {
+                    .map(|(col, (&byte, char))| {
                         let byte_pos = app_info.start_address + (row * bytes_per_line) + col;
-                        let mut span = Span::styled(string, Style::default().fg(*get_color(byte)));
+                        let mut span = Span::styled(char.to_string(), Style::default().fg(*get_color(byte)));
                         // Highlight the selected byte in the ASCII table
                         let last_drag = app_info.last_drag.unwrap_or(app_info.offset);
                         if byte_pos == app_info.offset
