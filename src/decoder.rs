@@ -98,7 +98,7 @@ impl<'a> Iterator for LossyUTF8Decoder<'a> {
 }
 
 
-pub(crate) enum Decoding {
+pub(crate) enum Encoding {
     Ascii,
     Utf8,
 }
@@ -112,10 +112,10 @@ pub(crate) struct ByteAlignedDecoder<D: Iterator<Item=(char, CharType)>> {
 type BoxedDecoder<'a> = Box<dyn Iterator<Item=(char, CharType)> + 'a>;
 
 impl<'a> ByteAlignedDecoder<BoxedDecoder<'a>> {
-    pub(crate) fn new(bytes: &'a [u8], decoding: Decoding) -> Self {
-        match decoding {
-            Decoding::Ascii => Box::new(LossyASCIIDecoder::from(bytes)) as BoxedDecoder,
-            Decoding::Utf8 => Box::new(LossyUTF8Decoder::from(bytes)) as BoxedDecoder,
+    pub(crate) fn new(bytes: &'a [u8], encoding: Encoding) -> Self {
+        match encoding {
+            Encoding::Ascii => Box::new(LossyASCIIDecoder::from(bytes)) as BoxedDecoder,
+            Encoding::Utf8 => Box::new(LossyUTF8Decoder::from(bytes)) as BoxedDecoder,
         }.into()
     }
 }
@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn test_decoder_ascii() {
-        let decoder = ByteAlignedDecoder::new(TEST_BYTES, Decoding::Ascii);
+        let decoder = ByteAlignedDecoder::new(TEST_BYTES, Encoding::Ascii);
         let characters: Vec<_> = decoder.collect();
         let decoded = String::from_iter(&characters);
 
@@ -162,7 +162,7 @@ mod tests {
 
     #[test]
     fn test_decoder_utf8() {
-        let decoder = ByteAlignedDecoder::new(TEST_BYTES, Decoding::Utf8);
+        let decoder = ByteAlignedDecoder::new(TEST_BYTES, Encoding::Utf8);
         let characters: Vec<_> = decoder.collect();
         let decoded = String::from_iter(&characters);
 
