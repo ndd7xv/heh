@@ -1,5 +1,8 @@
 use std::str::from_utf8;
 
+const UNKNOWN_CHARACTER: char = '�';
+const FILL_CHARACTER: char = '•';
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum CharType {
     Ascii,
@@ -41,7 +44,7 @@ impl<'a> Iterator for LossyASCIIDecoder<'a> {
             if byte.is_ascii() {
                 Some((byte as char, CharType::Ascii))
             } else {
-                Some(('�', CharType::Unknown))
+                Some((UNKNOWN_CHARACTER, CharType::Unknown))
             }
         } else {
             None
@@ -75,7 +78,7 @@ impl<'a> Iterator for LossyUTF8Decoder<'a> {
                 0xF0..=0xF7 => CharType::Unicode(4),
                 _ => {
                     self.cursor += 1;
-                    return Some(('�', CharType::Unknown));
+                    return Some((UNKNOWN_CHARACTER, CharType::Unknown));
                 }
             };
 
@@ -89,7 +92,7 @@ impl<'a> Iterator for LossyUTF8Decoder<'a> {
                 Some((char, info))
             } else {
                 self.cursor += 1;
-                Some(('�', CharType::Unknown))
+                Some((UNKNOWN_CHARACTER, CharType::Unknown))
             }
         } else {
             None
@@ -139,7 +142,7 @@ impl<'a, D: Iterator<Item=(char, CharType)>> Iterator for ByteAlignedDecoder<D> 
             Some(c)
         } else {
             self.to_fill -= 1;
-            Some('•')
+            Some(FILL_CHARACTER)
         }
     }
 }
