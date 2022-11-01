@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::str::from_utf8;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -16,6 +17,8 @@ impl CharType {
         }
     }
 }
+
+pub(crate) trait LossyDecoder<'a>: From<&'a [u8]> + Iterator<Item=(char, CharType)> {}
 
 pub(crate) struct LossyUTF8Decoder<'a> {
     bytes: &'a [u8],
@@ -66,21 +69,26 @@ impl<'a> Iterator for LossyUTF8Decoder<'a> {
 }
 
 
-pub(crate) struct ByteAlignedDecoder<'a> {
-    decoder: LossyUTF8Decoder<'a>,
+impl<'a> LossyDecoder<'a> for LossyUTF8Decoder<'a> {}
+
+
+pub(crate) struct ByteAlignedDecoder<'a, D: LossyDecoder<'a>> {
+    decoder: D,
     to_fill: usize,
+    phantom: PhantomData<&'a D>,
 }
 
-impl<'a> From<LossyUTF8Decoder<'a>> for ByteAlignedDecoder<'a> {
-    fn from(decoder: LossyUTF8Decoder<'a>) -> Self {
+impl<'a, D: LossyDecoder<'a>> From<D> for ByteAlignedDecoder<'a, D> {
+    fn from(decoder: D) -> Self {
         Self {
             decoder,
             to_fill: 0,
+            phantom: PhantomData::default(),
         }
     }
 }
 
-impl<'a> Iterator for ByteAlignedDecoder<'a> {
+impl<'a, D: LossyDecoder<'a>> Iterator for ByteAlignedDecoder<'a, D> {
     type Item = char;
 
     fn next(&mut self) -> Option<Self::Item> {
