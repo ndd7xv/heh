@@ -22,7 +22,6 @@ use crate::{
     label::{LABEL_TITLES, LabelHandler},
     windows::{editor::Editor, KeyHandler, Window},
 };
-use crate::byte::get_color;
 
 const COLOR_NULL: Color = Color::DarkGray;
 
@@ -180,10 +179,9 @@ impl ScreenHandler {
             .collect::<Vec<Spans>>();
 
         let hex_text = generate_hex(app_info, bytes_per_line, lines_per_screen);
+        let decoded_text = generate_decoded(app_info, bytes_per_line, lines_per_screen);
 
-        let unicode_text = generate_decoded_text(app_info, bytes_per_line, lines_per_screen);
-
-        (address_text.into(), hex_text.into(), unicode_text.into())
+        (address_text.into(), hex_text.into(), decoded_text.into())
     }
 
     /// Display the addresses, editors, labels, and popups based off of the specifications of
@@ -299,8 +297,9 @@ fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usi
         .map(|(row, chunk)| {
             let spans = chunk
                 .iter()
+                .zip(ByteAlignedDecoder::new(chunk, Encoding::Utf8))
                 .enumerate()
-                .flat_map(|(col, &byte)| {
+                .flat_map(|(col, (&byte, character))| {
                     // We don't want an extra space at the end of each row.
                     if col < bytes_per_line - 1 {
                         format!("{byte:02X?} ")
@@ -312,7 +311,7 @@ fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usi
                         .map(|(nibble_pos, c)| {
                             let byte_pos = app_info.start_address + (row * bytes_per_line) + col;
                             let mut span =
-                                Span::styled(c.to_string(), Style::default().fg(*get_color(byte)));
+                                Span::styled(c.to_string(), Style::default().fg(*character.color()));
                             let is_cursor = byte_pos == app_info.offset
                                 && ((nibble_pos == 0 && app_info.nibble == Nibble::Beginning)
                                 || (nibble_pos == 1 && app_info.nibble == Nibble::End));
@@ -370,7 +369,7 @@ fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usi
 }
 
 /// Display decoded bytes with correct highlighting and colors.
-fn generate_decoded_text(
+fn generate_decoded(
     app_info: &AppData,
     bytes_per_line: usize,
     lines_per_screen: usize,
@@ -381,13 +380,11 @@ fn generate_decoded_text(
         .enumerate()
         .map(|(row, chunk)| {
             Spans::from(
-                chunk
-                    .iter()
-                    .zip(ByteAlignedDecoder::new(chunk, Encoding::Utf8))
+                ByteAlignedDecoder::new(chunk, Encoding::Utf8)
                     .enumerate()
-                    .map(|(col, (&byte, char))| {
+                    .map(|(col, character)| {
                         let byte_pos = app_info.start_address + (row * bytes_per_line) + col;
-                        let mut span = Span::styled(char.to_string(), Style::default().fg(*get_color(byte)));
+                        let mut span = Span::styled(character.to_string(), Style::default().fg(*character.color()));
                         // Highlight the selected byte in the ASCII table
                         let last_drag = app_info.last_drag.unwrap_or(app_info.offset);
                         if byte_pos == app_info.offset

@@ -1,26 +1,8 @@
 use std::str::from_utf8;
 
-const UNKNOWN_CHARACTER: char = '�';
-const FILL_CHARACTER: char = '•';
+use crate::character::{Category, CHARACTER_FILL, CHARACTER_UNKNOWN, RichChar, Type};
 
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) enum CharType {
-    Ascii,
-    Unicode(usize),
-    Unknown,
-}
-
-impl CharType {
-    fn size(&self) -> usize {
-        match self {
-            CharType::Ascii => 1,
-            CharType::Unicode(size) => *size,
-            CharType::Unknown => 1,
-        }
-    }
-}
-
-pub(crate) struct LossyASCIIDecoder<'a> {
+struct LossyASCIIDecoder<'a> {
     bytes: &'a [u8],
     cursor: usize,
 }
@@ -35,16 +17,16 @@ impl<'a> From<&'a [u8]> for LossyASCIIDecoder<'a> {
 }
 
 impl<'a> Iterator for LossyASCIIDecoder<'a> {
-    type Item = (char, CharType);
+    type Item = (char, Type);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.cursor < self.bytes.len() {
             let byte = self.bytes[self.cursor];
             self.cursor += 1;
             if byte.is_ascii() {
-                Some((byte as char, CharType::Ascii))
+                Some((byte as char, Type::Ascii))
             } else {
-                Some((UNKNOWN_CHARACTER, CharType::Unknown))
+                Some((CHARACTER_UNKNOWN, Type::Unknown))
             }
         } else {
             None
@@ -52,7 +34,7 @@ impl<'a> Iterator for LossyASCIIDecoder<'a> {
     }
 }
 
-pub(crate) struct LossyUTF8Decoder<'a> {
+struct LossyUTF8Decoder<'a> {
     bytes: &'a [u8],
     cursor: usize,
 }
@@ -67,32 +49,32 @@ impl<'a> From<&'a [u8]> for LossyUTF8Decoder<'a> {
 }
 
 impl<'a> Iterator for LossyUTF8Decoder<'a> {
-    type Item = (char, CharType);
+    type Item = (char, Type);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.cursor < self.bytes.len() {
-            let info = match self.bytes[self.cursor] {
-                0x00..=0x7F => CharType::Ascii,
-                0xC0..=0xDF => CharType::Unicode(2),
-                0xE0..=0xEF => CharType::Unicode(3),
-                0xF0..=0xF7 => CharType::Unicode(4),
+            let typ = match self.bytes[self.cursor] {
+                0x00..=0x7F => Type::Ascii,
+                0xC0..=0xDF => Type::Unicode(2),
+                0xE0..=0xEF => Type::Unicode(3),
+                0xF0..=0xF7 => Type::Unicode(4),
                 _ => {
                     self.cursor += 1;
-                    return Some((UNKNOWN_CHARACTER, CharType::Unknown));
+                    return Some((CHARACTER_UNKNOWN, Type::Unknown));
                 }
             };
 
-            let new_cursor = self.bytes.len().min(self.cursor + info.size());
+            let new_cursor = self.bytes.len().min(self.cursor + typ.size());
             let chunk = &self.bytes[self.cursor..new_cursor];
 
             if let Ok(mut chars) = from_utf8(chunk).map(str::chars) {
                 let char = chars.next().expect("the string must contain exactly one character");
                 debug_assert!(chars.next().is_none(), "the string must contain exactly one character");
-                self.cursor += info.size();
-                Some((char, info))
+                self.cursor += typ.size();
+                Some((char, typ))
             } else {
                 self.cursor += 1;
-                Some((UNKNOWN_CHARACTER, CharType::Unknown))
+                Some((CHARACTER_UNKNOWN, Type::Unknown))
             }
         } else {
             None
@@ -107,12 +89,12 @@ pub(crate) enum Encoding {
 }
 
 
-pub(crate) struct ByteAlignedDecoder<D: Iterator<Item=(char, CharType)>> {
+pub(crate) struct ByteAlignedDecoder<D: Iterator<Item=(char, Type)>> {
     decoder: D,
     to_fill: usize,
 }
 
-type BoxedDecoder<'a> = Box<dyn Iterator<Item=(char, CharType)> + 'a>;
+type BoxedDecoder<'a> = Box<dyn Iterator<Item=(char, Type)> + 'a>;
 
 impl<'a> ByteAlignedDecoder<BoxedDecoder<'a>> {
     pub(crate) fn new(bytes: &'a [u8], encoding: Encoding) -> Self {
@@ -123,7 +105,7 @@ impl<'a> ByteAlignedDecoder<BoxedDecoder<'a>> {
     }
 }
 
-impl<D: Iterator<Item=(char, CharType)>> From<D> for ByteAlignedDecoder<D> {
+impl<D: Iterator<Item=(char, Type)>> From<D> for ByteAlignedDecoder<D> {
     fn from(decoder: D) -> Self {
         Self {
             decoder,
@@ -132,17 +114,21 @@ impl<D: Iterator<Item=(char, CharType)>> From<D> for ByteAlignedDecoder<D> {
     }
 }
 
-impl<'a, D: Iterator<Item=(char, CharType)>> Iterator for ByteAlignedDecoder<D> {
-    type Item = char;
+impl<D: Iterator<Item=(char, Type)>> Iterator for ByteAlignedDecoder<D> {
+    type Item = RichChar;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.to_fill == 0 {
-            let (c, info) = self.decoder.next()?;
-            self.to_fill = info.size() - 1;
-            Some(c)
+            let (character, typ) = self.decoder.next()?;
+            let category = match typ {
+                Type::Unknown => Category::Unknown,
+                _ => Category::from(&character)
+            };
+            self.to_fill = typ.size() - 1;
+            Some(RichChar::new(category.escape(character), category))
         } else {
             self.to_fill -= 1;
-            Some(FILL_CHARACTER)
+            Some(RichChar::new(CHARACTER_FILL, Category::Fill))
         }
     }
 }
@@ -157,19 +143,19 @@ mod tests {
     fn test_decoder_ascii() {
         let decoder = ByteAlignedDecoder::new(TEST_BYTES, Encoding::Ascii);
         let characters: Vec<_> = decoder.collect();
-        let decoded = String::from_iter(&characters);
+        let decoded = String::from_iter(characters.iter().map(char::from));
 
         assert_eq!(TEST_BYTES.len(), characters.len());
-        assert_eq!(&decoded, "text, controls \n \r\n, space \t, unicode ��h �� la ����, null \0, invalid ���");
+        assert_eq!(&decoded, "text, controls _ __, space _, unicode ��h �� la ����, null 0, invalid ���");
     }
 
     #[test]
     fn test_decoder_utf8() {
         let decoder = ByteAlignedDecoder::new(TEST_BYTES, Encoding::Utf8);
         let characters: Vec<_> = decoder.collect();
-        let decoded = String::from_iter(&characters);
+        let decoded = String::from_iter(characters.iter().map(char::from));
 
         assert_eq!(TEST_BYTES.len(), characters.len());
-        assert_eq!(&decoded, "text, controls \n \r\n, space \t, unicode ä•h à• la 💩•••, null \0, invalid ���");
+        assert_eq!(&decoded, "text, controls _ __, space _, unicode ä•h à• la 💩•••, null 0, invalid ���");
     }
 }

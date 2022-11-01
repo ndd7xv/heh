@@ -7,19 +7,18 @@
 
 use std::{error::Error, fs::OpenOptions, io, process};
 
+use clap::{arg, command};
 use crossterm::tty::IsTty;
 
 use app::Application;
 
 mod app;
-mod byte;
 mod input;
 mod label;
 mod screen;
 mod windows;
 mod decoder;
-
-use clap::{arg, command};
+mod character;
 
 const ABOUT: &str = "
 A HEx Helper to edit bytes by the nibble.
