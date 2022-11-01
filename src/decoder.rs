@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use std::str::from_utf8;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -17,8 +16,6 @@ impl CharType {
         }
     }
 }
-
-pub(crate) trait LossyDecoder<'a>: From<&'a [u8]> + Iterator<Item=(char, CharType)> {}
 
 pub(crate) struct LossyASCIIDecoder<'a> {
     bytes: &'a [u8],
@@ -51,8 +48,6 @@ impl<'a> Iterator for LossyASCIIDecoder<'a> {
         }
     }
 }
-
-impl<'a> LossyDecoder<'a> for LossyASCIIDecoder<'a> {}
 
 pub(crate) struct LossyUTF8Decoder<'a> {
     bytes: &'a [u8],
@@ -103,26 +98,21 @@ impl<'a> Iterator for LossyUTF8Decoder<'a> {
 }
 
 
-impl<'a> LossyDecoder<'a> for LossyUTF8Decoder<'a> {}
-
-
-pub(crate) struct ByteAlignedDecoder<'a, D: LossyDecoder<'a>> {
+pub(crate) struct ByteAlignedDecoder<D: Iterator<Item=(char, CharType)>> {
     decoder: D,
     to_fill: usize,
-    phantom: PhantomData<&'a D>,
 }
 
-impl<'a, D: LossyDecoder<'a>> From<D> for ByteAlignedDecoder<'a, D> {
+impl<D: Iterator<Item=(char, CharType)>> From<D> for ByteAlignedDecoder<D> {
     fn from(decoder: D) -> Self {
         Self {
             decoder,
             to_fill: 0,
-            phantom: PhantomData::default(),
         }
     }
 }
 
-impl<'a, D: LossyDecoder<'a>> Iterator for ByteAlignedDecoder<'a, D> {
+impl<'a, D: Iterator<Item=(char, CharType)>> Iterator for ByteAlignedDecoder<D> {
     type Item = char;
 
     fn next(&mut self) -> Option<Self::Item> {
