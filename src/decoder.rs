@@ -119,7 +119,7 @@ impl<D: Iterator<Item = (char, Type)>> Iterator for ByteAlignedDecoder<D> {
                 _ => Category::from(&character),
             };
             self.to_fill = typ.size() - 1;
-            Some(RichChar::new(category.escape(character), category))
+            Some(RichChar::new(character, category))
         } else {
             self.to_fill -= 1;
             Some(RichChar::new(CHARACTER_FILL, Category::Fill))

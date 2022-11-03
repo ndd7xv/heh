@@ -96,6 +96,10 @@ impl RichChar {
         Self { character, category }
     }
 
+    pub(crate) fn escape(&self) -> char {
+        self.category.escape(self.character)
+    }
+
     pub(crate) fn color(&self) -> &'static Color {
         self.category.color()
     }

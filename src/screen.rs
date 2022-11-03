@@ -409,7 +409,7 @@ fn generate_decoded(
                 .map(|(col, character)| {
                     let byte_pos = app_info.start_address + (row * bytes_per_line) + col;
                     let mut span = Span::styled(
-                        character.to_string(),
+                        character.escape().to_string(),
                         Style::default().fg(*character.color()),
                     );
                     // Highlight the selected byte in the ASCII table
