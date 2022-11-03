@@ -7,10 +7,10 @@ use std::{
     collections::hash_map::DefaultHasher, error::Error, fs::File, hash::Hasher, io::Read, process,
 };
 
+use arboard::Clipboard;
 use crossterm::event::{self, Event};
 
-use arboard::Clipboard;
-
+use crate::decoder::Encoding;
 use crate::{
     input,
     label::LabelHandler,
@@ -20,7 +20,6 @@ use crate::{
         Window,
     },
 };
-use crate::decoder::Encoding;
 
 /// Enum that represent grouping of 4 bits in a byte.
 ///

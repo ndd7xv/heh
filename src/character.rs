@@ -13,6 +13,7 @@ const COLOR_ASCII: Color = Color::Cyan;
 const COLOR_UNICODE: Color = Color::LightCyan;
 const COLOR_WHITESPACE: Color = Color::Green;
 const COLOR_CONTROL: Color = Color::Magenta;
+const COLOR_FILL: Color = Color::LightCyan;
 const COLOR_UNKNOWN: Color = Color::Yellow;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -25,9 +26,8 @@ pub(crate) enum Type {
 impl Type {
     pub(crate) fn size(&self) -> usize {
         match self {
-            Type::Ascii => 1,
+            Type::Ascii | Type::Unknown => 1,
             Type::Unicode(size) => *size,
-            Type::Unknown => 1,
         }
     }
 }
@@ -79,7 +79,7 @@ impl Category {
             Category::Unicode => &COLOR_UNICODE,
             Category::Whitespace => &COLOR_WHITESPACE,
             Category::Control => &COLOR_CONTROL,
-            Category::Fill => &COLOR_UNICODE,
+            Category::Fill => &COLOR_FILL,
             Category::Unknown => &COLOR_UNKNOWN,
         }
     }

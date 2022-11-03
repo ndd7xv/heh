@@ -7,7 +7,7 @@
 
 use std::{error::Error, fs::OpenOptions, io, process};
 
-use clap::{Arg, arg_enum, command, value_t};
+use clap::{arg_enum, command, value_t, Arg};
 use crossterm::tty::IsTty;
 
 use app::Application;
@@ -15,12 +15,12 @@ use app::Application;
 use crate::decoder::Encoding;
 
 mod app;
+mod character;
+mod decoder;
 mod input;
 mod label;
 mod screen;
 mod windows;
-mod decoder;
-mod character;
 
 const ABOUT: &str = "
 A HEx Helper to edit bytes by the nibble.
@@ -51,7 +51,6 @@ Left-clicking on the ASCII or hex table will focus it.
 
 Zooming in and out will change the size of the components.";
 
-
 arg_enum! {
     #[derive(Copy, Clone, Debug)]
     pub enum EncodingOption {
@@ -74,16 +73,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     let matches = command!()
         .about(ABOUT)
         .long_about(LONG_ABOUT)
-        .arg(Arg::new("Encoding")
-            .help("Encoding used for text editor")
-            .short('e')
-            .long("encoding")
-            .required(false)
-            .case_insensitive(true)
-            .possible_values(&EncodingOption::variants())
-            .default_value("Ascii"))
-        .arg(Arg::new("FILE")
-            .required(true))
+        .arg(
+            Arg::new("Encoding")
+                .help("Encoding used for text editor")
+                .short('e')
+                .long("encoding")
+                .required(false)
+                .case_insensitive(true)
+                .possible_values(&EncodingOption::variants())
+                .default_value("Ascii"),
+        )
+        .arg(Arg::new("FILE").required(true))
         .get_matches();
 
     if !io::stdout().is_tty() {

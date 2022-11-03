@@ -1,6 +1,10 @@
 //! In charge of calculating dimensions and displaying everything.
 
-use std::{cmp, error::Error, io::{self, Stdout}};
+use std::{
+    cmp,
+    error::Error,
+    io::{self, Stdout},
+};
 
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
@@ -11,15 +15,15 @@ use tui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style},
-    Terminal,
     text::{Span, Spans, Text},
     widgets::{Block, Borders, Clear, Paragraph},
+    Terminal,
 };
 
 use crate::{
     app::{AppData, Nibble},
     decoder::ByteAlignedDecoder,
-    label::{LABEL_TITLES, LabelHandler},
+    label::{LabelHandler, LABEL_TITLES},
     windows::{editor::Editor, KeyHandler, Window},
 };
 
@@ -306,61 +310,61 @@ fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usi
                     } else {
                         format!("{byte:02X?}")
                     }
-                        .chars()
-                        .enumerate()
-                        .map(|(nibble_pos, c)| {
-                            let byte_pos = app_info.start_address + (row * bytes_per_line) + col;
-                            let mut span =
-                                Span::styled(c.to_string(), Style::default().fg(*character.color()));
-                            let is_cursor = byte_pos == app_info.offset
-                                && ((nibble_pos == 0 && app_info.nibble == Nibble::Beginning)
+                    .chars()
+                    .enumerate()
+                    .map(|(nibble_pos, c)| {
+                        let byte_pos = app_info.start_address + (row * bytes_per_line) + col;
+                        let mut span =
+                            Span::styled(c.to_string(), Style::default().fg(*character.color()));
+                        let is_cursor = byte_pos == app_info.offset
+                            && ((nibble_pos == 0 && app_info.nibble == Nibble::Beginning)
                                 || (nibble_pos == 1 && app_info.nibble == Nibble::End));
 
-                            // Determine if the specified nibble (or space) should have a
-                            // lighter foreground because it is in the user's dragged range.
-                            // The logic is more complicated for hex because users can select
-                            // a single nibble from a byte.
-                            let mut in_drag = false;
-                            if let Some(drag) = app_info.last_drag {
-                                let drag_nibble = app_info.drag_nibble.unwrap_or(Nibble::End);
-                                if !(drag == app_info.offset && app_info.nibble == drag_nibble) {
-                                    let mut start = drag;
-                                    let mut end = app_info.offset;
-                                    let mut start_nibble = drag_nibble;
-                                    let mut end_nibble = app_info.nibble;
+                        // Determine if the specified nibble (or space) should have a
+                        // lighter foreground because it is in the user's dragged range.
+                        // The logic is more complicated for hex because users can select
+                        // a single nibble from a byte.
+                        let mut in_drag = false;
+                        if let Some(drag) = app_info.last_drag {
+                            let drag_nibble = app_info.drag_nibble.unwrap_or(Nibble::End);
+                            if !(drag == app_info.offset && app_info.nibble == drag_nibble) {
+                                let mut start = drag;
+                                let mut end = app_info.offset;
+                                let mut start_nibble = drag_nibble;
+                                let mut end_nibble = app_info.nibble;
 
-                                    if app_info.offset < drag {
-                                        start = app_info.offset;
-                                        end = drag;
-                                        start_nibble = app_info.nibble;
-                                        end_nibble = drag_nibble;
-                                    }
+                                if app_info.offset < drag {
+                                    start = app_info.offset;
+                                    end = drag;
+                                    start_nibble = app_info.nibble;
+                                    end_nibble = drag_nibble;
+                                }
 
-                                    // The only time the starting byte would not entirely be in
-                                    // drag range is when the first nibble is not highlighted.
-                                    // Similarly, the last nibble is only partially highlighted
-                                    // when the second (and last) nibble is not selected.
-                                    if byte_pos == start {
-                                        in_drag = !(nibble_pos == 0 && start_nibble == Nibble::End);
-                                    }
-                                    if byte_pos == end {
-                                        in_drag |= !(nibble_pos == 1
-                                            && end_nibble == Nibble::Beginning)
-                                            && nibble_pos != 2;
-                                    }
-                                    if start == end && nibble_pos == 2 {
-                                        in_drag = false;
-                                    } else if end - start > 1 {
-                                        in_drag |= (start + 1..end).contains(&byte_pos);
-                                    }
+                                // The only time the starting byte would not entirely be in
+                                // drag range is when the first nibble is not highlighted.
+                                // Similarly, the last nibble is only partially highlighted
+                                // when the second (and last) nibble is not selected.
+                                if byte_pos == start {
+                                    in_drag = !(nibble_pos == 0 && start_nibble == Nibble::End);
+                                }
+                                if byte_pos == end {
+                                    in_drag |= !(nibble_pos == 1
+                                        && end_nibble == Nibble::Beginning)
+                                        && nibble_pos != 2;
+                                }
+                                if start == end && nibble_pos == 2 {
+                                    in_drag = false;
+                                } else if end - start > 1 {
+                                    in_drag |= (start + 1..end).contains(&byte_pos);
                                 }
                             }
-                            if is_cursor || in_drag {
-                                span.style = span.style.bg(COLOR_NULL);
-                            }
-                            span
-                        })
-                        .collect::<Vec<Span>>()
+                        }
+                        if is_cursor || in_drag {
+                            span.style = span.style.bg(COLOR_NULL);
+                        }
+                        span
+                    })
+                    .collect::<Vec<Span>>()
                 })
                 .collect::<Vec<Span>>();
             Spans::from(spans)
@@ -384,7 +388,10 @@ fn generate_decoded(
                     .enumerate()
                     .map(|(col, character)| {
                         let byte_pos = app_info.start_address + (row * bytes_per_line) + col;
-                        let mut span = Span::styled(character.to_string(), Style::default().fg(*character.color()));
+                        let mut span = Span::styled(
+                            character.to_string(),
+                            Style::default().fg(*character.color()),
+                        );
                         // Highlight the selected byte in the ASCII table
                         let last_drag = app_info.last_drag.unwrap_or(app_info.offset);
                         if byte_pos == app_info.offset
@@ -411,7 +418,7 @@ fn popup_rect((x, y): (u16, u16), r: Rect) -> Rect {
                 Constraint::Length(y),
                 Constraint::Min(r.height.saturating_sub(y) / 2),
             ]
-                .as_ref(),
+            .as_ref(),
         )
         .split(r);
 
@@ -423,7 +430,7 @@ fn popup_rect((x, y): (u16, u16), r: Rect) -> Rect {
                 Constraint::Length(x),
                 Constraint::Min(r.width.saturating_sub(x) / 2),
             ]
-                .as_ref(),
+            .as_ref(),
         )
         .split(popup_layout[1])[1]
 }
