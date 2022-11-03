@@ -16,6 +16,7 @@ use crate::decoder::Encoding;
 
 mod app;
 mod character;
+mod chunk;
 mod decoder;
 mod input;
 mod label;
