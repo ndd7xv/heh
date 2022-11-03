@@ -294,6 +294,10 @@ impl ScreenHandler {
 
 /// Display hex bytes with correct highlighting and colors by chunking the bytes into rows and
 /// formatting them into hex.
+///
+/// NOTE: In UTF-8, a character takes up to 4 bytes and thus the encoding can break at the ends of a
+/// chunk. Increasing the chunk size by 3 bytes at both ends before decoding and cropping them of
+/// afterwards solves the issue for the visible parts.
 fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usize) -> Vec<Spans> {
     let initial_offset = app_info.start_address.min(3);
     OverlappingChunks::new(
@@ -379,6 +383,10 @@ fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usi
 }
 
 /// Display decoded bytes with correct highlighting and colors.
+///
+/// NOTE: In UTF-8, a character takes up to 4 bytes and thus the encoding can break at the ends of a
+/// chunk. Increasing the chunk size by 3 bytes at both ends before decoding and cropping them of
+/// afterwards solves the issue for the visible parts.
 fn generate_decoded(
     app_info: &AppData,
     bytes_per_line: usize,

@@ -1,3 +1,4 @@
+/// Split a slice into overlapping chunks where each chunk is of size `size + overlap`.
 pub(crate) struct OverlappingChunks<'a, T> {
     slice: &'a [T],
     cursor: usize,
