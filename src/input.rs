@@ -237,7 +237,7 @@ pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
                     }
                     Window::Hex => {
                         if let Some((cursor_pos, nibble)) =
-                            handle_editor_drag(Window::Hex, app, mouse)
+                        handle_editor_drag(Window::Hex, app, mouse)
                         {
                             if app.data.last_drag.is_none() {
                                 app.data.last_drag = Some(app.data.offset);
@@ -371,10 +371,10 @@ fn handle_editor_drag(
     let editor_bottom_row = editor.top()
         + 1
         + cmp::min(
-            app.display.comp_layouts.lines_per_screen,
-            (app.data.contents.len() - app.data.start_address)
-                / app.display.comp_layouts.bytes_per_line,
-        ) as u16;
+        app.display.comp_layouts.lines_per_screen,
+        (app.data.contents.len() - app.data.start_address)
+            / app.display.comp_layouts.bytes_per_line,
+    ) as u16;
     if mouse.row == 0 {
         mouse.row = 1;
         if let Some(mut result) = handle_editor_cursor_action(window, app, mouse) {
@@ -433,11 +433,7 @@ fn handle_editor_cursor_action(
     // Do not consider a click to the space after the last byte of a full viewport to be a click.
     // The space after the last byte of every row is generally considered a click for the first
     // byte on the next row for dragging purposes.
-    if rel_y == editor.height - 2
-        && rel_x
-            > app.display.comp_layouts.bytes_per_line as u16 * word_size
-                - if window == Window::Hex { 1 } else { 0 }
-    {
+    if rel_y == editor.height - 2 && rel_x > app.display.comp_layouts.bytes_per_line as u16 * word_size - u16::from(window == Window::Hex) {
         return None;
     }
 

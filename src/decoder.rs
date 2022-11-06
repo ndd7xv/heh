@@ -137,11 +137,10 @@ mod tests {
     fn test_decoder_ascii() {
         let decoder = ByteAlignedDecoder::new(TEST_BYTES, Encoding::Ascii);
         let characters: Vec<_> = decoder.collect();
-        let decoded = String::from_iter(characters.iter().map(RichChar::escape).map(char::from));
 
         assert_eq!(TEST_BYTES.len(), characters.len());
         assert_eq!(
-            &decoded,
+            characters.iter().map(RichChar::escape).map(char::from).collect::<String>(),
             "text, controls _ __, space _, unicode ��h �� la ����, null 0, invalid ���"
         );
     }
@@ -150,11 +149,10 @@ mod tests {
     fn test_decoder_utf8() {
         let decoder = ByteAlignedDecoder::new(TEST_BYTES, Encoding::Utf8);
         let characters: Vec<_> = decoder.collect();
-        let decoded = String::from_iter(characters.iter().map(RichChar::escape).map(char::from));
 
         assert_eq!(TEST_BYTES.len(), characters.len());
         assert_eq!(
-            &decoded,
+            characters.iter().map(RichChar::escape).map(char::from).collect::<String>(),
             "text, controls _ __, space _, unicode ä•h à• la 💩•••, null 0, invalid ���"
         );
     }

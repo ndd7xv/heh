@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .long("encoding")
                 .required(false)
                 .case_insensitive(true)
-                .possible_values(&EncodingOption::variants())
+                .possible_values(EncodingOption::variants())
                 .default_value("Ascii"),
         )
         .arg(Arg::new("FILE").required(true))
