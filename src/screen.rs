@@ -311,7 +311,7 @@ fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usi
         let spans = chunk
             .iter()
             .zip(ByteAlignedDecoder::new(chunk, app_info.encoding))
-            .skip(if row == 0 { initial_offset } else { 3 })
+            .skip(initial_offset)
             .take(bytes_per_line)
             .enumerate()
             .flat_map(|(col, (&byte, character))| {
@@ -403,7 +403,7 @@ fn generate_decoded(
     .map(|(row, chunk)| {
         Spans::from(
             ByteAlignedDecoder::new(chunk, app_info.encoding)
-                .skip(if row == 0 { initial_offset } else { 3 })
+                .skip(initial_offset)
                 .take(bytes_per_line)
                 .enumerate()
                 .map(|(col, character)| {
