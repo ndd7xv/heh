@@ -436,7 +436,7 @@ fn handle_editor_cursor_action(
     if rel_y == editor.height - 2
         && rel_x
             > app.display.comp_layouts.bytes_per_line as u16 * word_size
-                - if window == Window::Hex { 1 } else { 0 }
+                - u16::from(window == Window::Hex)
     {
         return None;
     }

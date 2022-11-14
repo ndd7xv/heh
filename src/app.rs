@@ -7,10 +7,10 @@ use std::{
     collections::hash_map::DefaultHasher, error::Error, fs::File, hash::Hasher, io::Read, process,
 };
 
+use arboard::Clipboard;
 use crossterm::event::{self, Event};
 
-use arboard::Clipboard;
-
+use crate::decoder::Encoding;
 use crate::{
     input,
     label::LabelHandler,
@@ -57,11 +57,14 @@ pub(crate) enum Action {
 
 /// State Information needed by the [`ScreenHandler`] and [`KeyHandler`].
 pub(crate) struct AppData {
-    /// The file under editting.
+    /// The file under editing.
     pub(crate) file: File,
 
     /// The file content.
     pub(crate) contents: Vec<u8>,
+
+    /// The decoding used for the editor.
+    pub(crate) encoding: Encoding,
 
     /// The hashed content, used for checking if anything has been changed.
     pub(crate) hashed_contents: u64,
@@ -81,7 +84,7 @@ pub(crate) struct AppData {
     /// A flag to enable dragging, only when a click is first valid.
     pub(crate) drag_enabled: bool,
 
-    /// The most recent cursor location where a drag occured
+    /// The most recent cursor location where a drag occurred
     pub(crate) last_drag: Option<usize>,
 
     /// The nibble that was last hovered from the drag.
@@ -120,7 +123,7 @@ impl Application {
     /// default. This is called once at the beginning of the program.
     ///
     /// This errors out if the file specified is empty.
-    pub(crate) fn new(mut file: File) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(mut file: File, encoding: Encoding) -> Result<Self, Box<dyn Error>> {
         let mut contents = Vec::new();
         file.read_to_end(&mut contents).expect("Reading the contents of the file was interrupted.");
         if contents.is_empty() {
@@ -138,6 +141,7 @@ impl Application {
             data: AppData {
                 file,
                 contents,
+                encoding,
                 hashed_contents: 0,
                 start_address: 0,
                 offset: 0,
