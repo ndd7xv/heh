@@ -3,6 +3,7 @@
 //! The application holds the main components of the other modules, like the [`ScreenHandler`],
 //! [`LabelHandler`], and input handling, as well as the state data that each of them need.
 
+use std::io::Seek;
 use std::{
     collections::hash_map::DefaultHasher, error::Error, fs::File, hash::Hasher, io::Read, process,
 };
@@ -123,8 +124,9 @@ impl Application {
     /// default. This is called once at the beginning of the program.
     ///
     /// This errors out if the file specified is empty.
-    pub(crate) fn new(mut file: File, encoding: Encoding) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(mut file: File, encoding: Encoding, offset: usize) -> Result<Self, Box<dyn Error>> {
         let mut contents = Vec::new();
+        file.seek(std::io::SeekFrom::Start(offset as u64))?;
         file.read_to_end(&mut contents).expect("Reading the contents of the file was interrupted.");
         if contents.is_empty() {
             eprintln!("heh does not support editing empty files");
