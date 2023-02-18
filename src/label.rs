@@ -128,7 +128,7 @@ impl LabelHandler {
         self.signed_sixtyfour = i64::from_le_bytes(bytes.try_into().unwrap()).to_string();
     }
     fn update_unsigned_eight(&mut self, bytes: &[u8]) {
-        self.unsigned_eight = (bytes[0] as u8).to_string();
+        self.unsigned_eight = (bytes[0]).to_string();
     }
     fn update_unsigned_sixteen(&mut self, bytes: &[u8]) {
         self.unsigned_sixteen = u16::from_le_bytes(bytes.try_into().unwrap()).to_string();

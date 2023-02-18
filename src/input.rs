@@ -6,7 +6,7 @@
 use std::{
     cmp,
     error::Error,
-    io::{Seek, SeekFrom, Write},
+    io::{Seek, Write},
 };
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
@@ -108,7 +108,7 @@ pub(crate) fn handle_character_input(
                 }
             }
             's' => {
-                app.data.file.seek(SeekFrom::Start(0))?;
+                app.data.file.rewind()?;
                 app.data.file.write_all(&app.data.contents)?;
                 app.data.file.set_len(app.data.contents.len() as u64)?;
 
@@ -396,7 +396,7 @@ fn handle_editor_drag(
                 mouse.column = end_of_row;
             }
         }
-        mouse.row = editor_bottom_row - if click_past_contents { 0 } else { 1 };
+        mouse.row = editor_bottom_row - u16::from(!click_past_contents);
         if let Some(mut result) = handle_editor_cursor_action(window, app, mouse) {
             if let Some(new_y) = result.0.checked_add(app.display.comp_layouts.bytes_per_line) {
                 if new_y < app.data.contents.len() {

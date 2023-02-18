@@ -70,10 +70,10 @@ impl From<EncodingOption> for Encoding {
 }
 
 fn parse_hex_or_dec(arg: &str) -> Result<usize, String> {
-    if arg.starts_with("0x") {
-        usize::from_str_radix(&arg[2..], 16).map_err(|e| format!("Invalid hexadecimal number: {}", e))
+    if let Some(striped) = arg.strip_prefix("0x") {
+        usize::from_str_radix(striped, 16).map_err(|e| format!("Invalid hexadecimal number: {e}"))
     } else {
-        arg.parse().map_err(|e| format!("Invalid decimal number: {}", e))
+        arg.parse().map_err(|e| format!("Invalid decimal number: {e}"))
     }
 }
 

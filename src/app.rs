@@ -124,7 +124,11 @@ impl Application {
     /// default. This is called once at the beginning of the program.
     ///
     /// This errors out if the file specified is empty.
-    pub(crate) fn new(mut file: File, encoding: Encoding, offset: usize) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(
+        mut file: File,
+        encoding: Encoding,
+        offset: usize,
+    ) -> Result<Self, Box<dyn Error>> {
         let mut contents = Vec::new();
         file.seek(std::io::SeekFrom::Start(offset as u64))?;
         file.read_to_end(&mut contents).expect("Reading the contents of the file was interrupted.");
