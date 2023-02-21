@@ -3,7 +3,6 @@
 //! The application holds the main components of the other modules, like the [`ScreenHandler`],
 //! [`LabelHandler`], and input handling, as well as the state data that each of them need.
 
-use std::io::Seek;
 use std::{
     collections::hash_map::DefaultHasher, error::Error, fs::File, hash::Hasher, io::Read, process,
 };
@@ -130,18 +129,25 @@ impl Application {
         offset: usize,
     ) -> Result<Self, Box<dyn Error>> {
         let mut contents = Vec::new();
-        file.seek(std::io::SeekFrom::Start(offset as u64))?;
         file.read_to_end(&mut contents).expect("Reading the contents of the file was interrupted.");
         if contents.is_empty() {
             eprintln!("heh does not support editing empty files");
             process::exit(1);
+        } else if offset >= contents.len() {
+            eprintln!(
+                "The specified offset ({offset}) is too large! (must be less than {})",
+                contents.len()
+            );
+            process::exit(1);
         }
 
-        let mut labels = LabelHandler::new(&contents);
+        let mut labels = LabelHandler::new(&contents, offset);
         let clipboard = Clipboard::new().ok();
         if clipboard.is_none() {
             labels.notification = String::from("Can't find clipboard!");
         }
+
+        let display = ScreenHandler::new()?;
 
         let mut app = Self {
             data: AppData {
@@ -149,8 +155,9 @@ impl Application {
                 contents,
                 encoding,
                 hashed_contents: 0,
-                start_address: 0,
-                offset: 0,
+                start_address: (offset / display.comp_layouts.bytes_per_line)
+                    * display.comp_layouts.bytes_per_line,
+                offset,
                 nibble: Nibble::Beginning,
                 last_click: Window::Unhandled,
                 drag_enabled: false,
@@ -160,7 +167,7 @@ impl Application {
                 editor: Editor::Hex,
                 actions: vec![],
             },
-            display: ScreenHandler::new()?,
+            display,
             labels,
             key_handler: Box::from(Editor::Hex),
         };

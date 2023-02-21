@@ -70,11 +70,11 @@ impl Index<&str> for LabelHandler {
 }
 
 impl LabelHandler {
-    pub(crate) fn new(bytes: &[u8]) -> Self {
+    pub(crate) fn new(bytes: &[u8], offset: usize) -> Self {
         let mut labels = Self { ..Default::default() };
         labels.update_stream_length(8);
-        labels.update_all(bytes);
-        labels.offset = String::from("0x0");
+        labels.update_all(&bytes[offset..]);
+        labels.offset = format!("{offset:#X?}");
         labels
     }
     pub(crate) fn update_all(&mut self, bytes: &[u8]) {
