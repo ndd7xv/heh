@@ -174,7 +174,7 @@ impl ScreenHandler {
         let address_text = (0..cmp::min(lines_per_screen, content_lines - start_row))
             .map(|i| {
                 let row_address = app_info.start_address + i * bytes_per_line;
-                let mut span = Span::from(format!("{:08X?}\n", row_address));
+                let mut span = Span::from(format!("{row_address:08X?}\n"));
                 // Highlight the address row that the cursor is in for visibility
                 if (row_address..row_address + bytes_per_line).contains(&app_info.offset) {
                     span.style = span.style.fg(Color::Black).bg(Color::White);

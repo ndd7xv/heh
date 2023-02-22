@@ -123,19 +123,31 @@ impl Application {
     /// default. This is called once at the beginning of the program.
     ///
     /// This errors out if the file specified is empty.
-    pub(crate) fn new(mut file: File, encoding: Encoding) -> Result<Self, Box<dyn Error>> {
+    pub(crate) fn new(
+        mut file: File,
+        encoding: Encoding,
+        offset: usize,
+    ) -> Result<Self, Box<dyn Error>> {
         let mut contents = Vec::new();
         file.read_to_end(&mut contents).expect("Reading the contents of the file was interrupted.");
         if contents.is_empty() {
             eprintln!("heh does not support editing empty files");
             process::exit(1);
+        } else if offset >= contents.len() {
+            eprintln!(
+                "The specified offset ({offset}) is too large! (must be less than {})",
+                contents.len()
+            );
+            process::exit(1);
         }
 
-        let mut labels = LabelHandler::new(&contents);
+        let mut labels = LabelHandler::new(&contents, offset);
         let clipboard = Clipboard::new().ok();
         if clipboard.is_none() {
             labels.notification = String::from("Can't find clipboard!");
         }
+
+        let display = ScreenHandler::new()?;
 
         let mut app = Self {
             data: AppData {
@@ -143,8 +155,9 @@ impl Application {
                 contents,
                 encoding,
                 hashed_contents: 0,
-                start_address: 0,
-                offset: 0,
+                start_address: (offset / display.comp_layouts.bytes_per_line)
+                    * display.comp_layouts.bytes_per_line,
+                offset,
                 nibble: Nibble::Beginning,
                 last_click: Window::Unhandled,
                 drag_enabled: false,
@@ -154,7 +167,7 @@ impl Application {
                 editor: Editor::Hex,
                 actions: vec![],
             },
-            display: ScreenHandler::new()?,
+            display,
             labels,
             key_handler: Box::from(Editor::Hex),
         };

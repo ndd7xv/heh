@@ -69,6 +69,14 @@ impl From<EncodingOption> for Encoding {
     }
 }
 
+fn parse_hex_or_dec(arg: &str) -> Result<usize, String> {
+    if let Some(striped) = arg.strip_prefix("0x") {
+        usize::from_str_radix(striped, 16).map_err(|e| format!("Invalid hexadecimal number: {e}"))
+    } else {
+        arg.parse().map_err(|e| format!("Invalid decimal number: {e}"))
+    }
+}
+
 /// Opens the specified file, creates a new application and runs it!
 fn main() -> Result<(), Box<dyn Error>> {
     let matches = command!()
@@ -84,6 +92,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .possible_values(EncodingOption::variants())
                 .default_value("Ascii"),
         )
+        .arg(
+            Arg::new("Offset")
+                .help("Read file at offset (indicated by a decimal or hexadecimal number)")
+                .long("offset")
+                .required(false)
+                .case_insensitive(true)
+                .value_parser(parse_hex_or_dec)
+                .default_value("0"),
+        )
         .arg(Arg::new("FILE").required(true))
         .get_matches();
 
@@ -97,8 +114,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         .write(true)
         .open(matches.get_one::<String>("FILE").unwrap())?;
     let encoding = value_t!(matches, "Encoding", EncodingOption)?;
+    let offset = *matches.get_one::<usize>("Offset").unwrap();
 
-    let mut app = Application::new(file, encoding.into())?;
+    let mut app = Application::new(file, encoding.into(), offset)?;
     app.run()?;
 
     Ok(())
