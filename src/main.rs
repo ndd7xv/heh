@@ -7,7 +7,7 @@
 
 use std::{error::Error, fs::OpenOptions, io, process};
 
-use clap::{arg_enum, command, value_t, Arg};
+use clap::{Parser, ValueEnum};
 use crossterm::tty::IsTty;
 
 use app::Application;
@@ -52,12 +52,49 @@ Left-clicking on the ASCII or hex table will focus it.
 
 Zooming in and out will change the size of the components.";
 
-arg_enum! {
-    #[derive(Copy, Clone, Debug)]
-    pub enum EncodingOption {
-        Ascii,
-        Utf8,
+#[derive(Parser)]
+#[command(about = ABOUT, long_about = LONG_ABOUT)]
+struct Cli {
+    #[arg(
+        value_enum,
+        short = 'e',
+        long = "encoding",
+        default_value = "ascii",
+        help = "Encoding used for text editor"
+    )]
+    encoding: EncodingOption,
+    #[arg(
+        value_parser = parse_hex_or_dec,
+        long = "offset",
+        default_value = "0",
+        help="Read file at offset (indicated by a decimal or hexadecimal number)"
+    )]
+    offset: usize,
+
+    // Positional argument.
+    #[arg(help = "File to open")]
+    file: String,
+}
+
+/// Opens the specified file, creates a new application and runs it!
+fn main() -> Result<(), Box<dyn Error>> {
+    if !io::stdout().is_tty() {
+        eprintln!("Stdout is not a TTY device.");
+        process::exit(1);
     }
+
+    let cli = Cli::parse();
+    let file = OpenOptions::new().read(true).write(true).open(cli.file)?;
+    let mut app = Application::new(file, cli.encoding.into(), cli.offset)?;
+    app.run()?;
+
+    Ok(())
+}
+
+#[derive(ValueEnum, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum EncodingOption {
+    Ascii,
+    Utf8,
 }
 
 impl From<EncodingOption> for Encoding {
@@ -75,49 +112,4 @@ fn parse_hex_or_dec(arg: &str) -> Result<usize, String> {
     } else {
         arg.parse().map_err(|e| format!("Invalid decimal number: {e}"))
     }
-}
-
-/// Opens the specified file, creates a new application and runs it!
-fn main() -> Result<(), Box<dyn Error>> {
-    let matches = command!()
-        .about(ABOUT)
-        .long_about(LONG_ABOUT)
-        .arg(
-            Arg::new("Encoding")
-                .help("Encoding used for text editor")
-                .short('e')
-                .long("encoding")
-                .required(false)
-                .case_insensitive(true)
-                .possible_values(EncodingOption::variants())
-                .default_value("Ascii"),
-        )
-        .arg(
-            Arg::new("Offset")
-                .help("Read file at offset (indicated by a decimal or hexadecimal number)")
-                .long("offset")
-                .required(false)
-                .case_insensitive(true)
-                .value_parser(parse_hex_or_dec)
-                .default_value("0"),
-        )
-        .arg(Arg::new("FILE").required(true))
-        .get_matches();
-
-    if !io::stdout().is_tty() {
-        eprintln!("Stdout is not a TTY device.");
-        process::exit(1);
-    }
-
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(matches.get_one::<String>("FILE").unwrap())?;
-    let encoding = value_t!(matches, "Encoding", EncodingOption)?;
-    let offset = *matches.get_one::<usize>("Offset").unwrap();
-
-    let mut app = Application::new(file, encoding.into(), offset)?;
-    app.run()?;
-
-    Ok(())
 }
