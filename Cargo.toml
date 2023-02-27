@@ -7,15 +7,15 @@ readme = "README.md"
 repository = "https://github.com/ndd7xv/heh"
 license = "MIT"
 categories = ["command-line-utilities", "text-editors"]
-rust-version = "1.59.0"
+rust-version = "1.64.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tui = "0.18"
-crossterm = "0.23"
-clap = { version = "3.2", features = ["cargo"] }
-arboard = { version = "2.1", default-features = false }
+tui = "0.19"
+crossterm = "0.26"
+clap = { version = "4.1", features = ["cargo", "derive"] }
+arboard = { version = "3.2", default-features = false }
 
 [profile.dev]
 opt-level = 1 # Default would excessively lag
