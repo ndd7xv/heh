@@ -99,6 +99,13 @@ pub(crate) fn handle_character_input(
                     app.set_focused_window(Window::JumpToByte);
                 }
             }
+            'f' => {
+                if app.key_handler.is_focusing(Window::Search) {
+                    app.focus_editor();
+                } else {
+                    app.set_focused_window(Window::Search);
+                }
+            }
             'q' => {
                 if !app.key_handler.is_focusing(Window::UnsavedChanges) {
                     if app.hash_contents() == app.data.hashed_contents {
@@ -218,6 +225,7 @@ pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
                 Window::Label(_)
                 | Window::Unhandled
                 | Window::JumpToByte
+                | Window::Search
                 | Window::UnsavedChanges => {}
             }
         }
@@ -252,6 +260,7 @@ pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
                     Window::Label(_)
                     | Window::Unhandled
                     | Window::JumpToByte
+                    | Window::Search
                     | Window::UnsavedChanges => {}
                 }
             }
@@ -273,6 +282,7 @@ pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
                 | Window::Ascii
                 | Window::Unhandled
                 | Window::JumpToByte
+                | Window::Search
                 | Window::UnsavedChanges => {}
             }
         }
