@@ -91,7 +91,7 @@ fn parse_input(input: &str) -> Result<Vec<u8>, String> {
         match input {
             [] => return Ok(result),
             // [0x30, 0x78] are hex for '0x'
-            [0x30, 0x78, h1, h2] => {
+            [0x30, 0x78, h1, h2, ..] => {
                 let bytes = [*h1, *h2];
                 let hex = std::str::from_utf8(&bytes).expect("input string to contain ascii");
                 let byte = u8::from_str_radix(hex, 16)
@@ -104,5 +104,20 @@ fn parse_input(input: &str) -> Result<Vec<u8>, String> {
                 input = &input[1..];
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_input;
+
+    #[test]
+    fn test_parse() {
+        assert_eq!(parse_input(""), Ok(vec![]));
+        assert_eq!(parse_input("0x"), Ok(vec![0x30, 0x78]));
+        assert_eq!(parse_input("asdf"), Ok(b"asdf".to_vec()));
+        assert_eq!(parse_input("0x30"), Ok(b"0".to_vec()));
+        assert_eq!(parse_input("0x30x"), Ok(b"0x".to_vec()));
+        assert_eq!(parse_input("abc0x64e"), Ok(b"abcde".to_vec()));
     }
 }
