@@ -54,15 +54,14 @@ impl KeyHandler for Search {
             labels.notification = "Empty search query".into();
             return;
         }
-        let needle_offset_delta = match app.contents[app.offset..]
+        let needle_offset_delta = if let Some(p) = app.contents[app.offset..]
             .windows(byte_sequence_to_search.len())
             .position(|w| w == byte_sequence_to_search)
         {
-            Some(p) => p,
-            None => {
-                labels.notification = "Query not found".into();
-                return;
-            }
+            p
+        } else {
+            labels.notification = "Query not found".into();
+            return;
         };
 
         app.offset += needle_offset_delta;

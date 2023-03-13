@@ -91,61 +91,7 @@ pub(crate) fn handle_character_input(
     modifiers: KeyModifiers,
 ) -> Result<bool, Box<dyn Error>> {
     if modifiers == KeyModifiers::CONTROL {
-        match char {
-            'j' => {
-                if app.key_handler.is_focusing(Window::JumpToByte) {
-                    app.focus_editor();
-                } else {
-                    app.set_focused_window(Window::JumpToByte);
-                }
-            }
-            'f' => {
-                if app.key_handler.is_focusing(Window::Search) {
-                    app.focus_editor();
-                } else {
-                    app.set_focused_window(Window::Search);
-                }
-            }
-            'q' => {
-                if !app.key_handler.is_focusing(Window::UnsavedChanges) {
-                    if app.hash_contents() == app.data.hashed_contents {
-                        return Ok(false);
-                    }
-                    app.set_focused_window(Window::UnsavedChanges);
-                }
-            }
-            's' => {
-                app.data.file.rewind()?;
-                app.data.file.write_all(&app.data.contents)?;
-                app.data.file.set_len(app.data.contents.len() as u64)?;
-
-                app.data.hashed_contents = app.hash_contents();
-
-                app.labels.notification = String::from("Saved!");
-            }
-            'z' => {
-                if let Some(action) = app.data.actions.pop() {
-                    match action {
-                        Action::CharacterInput(offset, byte, nibble) => {
-                            app.data.offset = offset;
-                            if let Some(nibble) = nibble {
-                                app.data.nibble = nibble;
-                            }
-                            app.data.contents[offset] = byte;
-                        }
-                        Action::Backspace(offset, byte) => {
-                            app.data.contents.insert(offset, byte);
-                            app.data.offset = offset + 1;
-                        }
-                        Action::Delete(offset, byte) => {
-                            app.data.contents.insert(offset, byte);
-                            app.data.offset = offset;
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
+        handle_control_options(char, app)?;
     } else if modifiers == KeyModifiers::ALT {
         match char {
             '=' => {
@@ -197,6 +143,65 @@ pub(crate) fn handle_character_input(
                 app.key_handler.char(&mut app.data, &mut app.display, &mut app.labels, char);
             }
         }
+    }
+    Ok(true)
+}
+
+fn handle_control_options(char: char, app: &mut Application) -> Result<bool, Box<dyn Error>> {
+    match char {
+        'j' => {
+            if app.key_handler.is_focusing(Window::JumpToByte) {
+                app.focus_editor();
+            } else {
+                app.set_focused_window(Window::JumpToByte);
+            }
+        }
+        'f' => {
+            if app.key_handler.is_focusing(Window::Search) {
+                app.focus_editor();
+            } else {
+                app.set_focused_window(Window::Search);
+            }
+        }
+        'q' => {
+            if !app.key_handler.is_focusing(Window::UnsavedChanges) {
+                if app.hash_contents() == app.data.hashed_contents {
+                    return Ok(false);
+                }
+                app.set_focused_window(Window::UnsavedChanges);
+            }
+        }
+        's' => {
+            app.data.file.rewind()?;
+            app.data.file.write_all(&app.data.contents)?;
+            app.data.file.set_len(app.data.contents.len() as u64)?;
+
+            app.data.hashed_contents = app.hash_contents();
+
+            app.labels.notification = String::from("Saved!");
+        }
+        'z' => {
+            if let Some(action) = app.data.actions.pop() {
+                match action {
+                    Action::CharacterInput(offset, byte, nibble) => {
+                        app.data.offset = offset;
+                        if let Some(nibble) = nibble {
+                            app.data.nibble = nibble;
+                        }
+                        app.data.contents[offset] = byte;
+                    }
+                    Action::Backspace(offset, byte) => {
+                        app.data.contents.insert(offset, byte);
+                        app.data.offset = offset + 1;
+                    }
+                    Action::Delete(offset, byte) => {
+                        app.data.contents.insert(offset, byte);
+                        app.data.offset = offset;
+                    }
+                }
+            }
+        }
+        _ => {}
     }
     Ok(true)
 }

@@ -211,9 +211,7 @@ impl Application {
             Event::Mouse(mouse) => {
                 input::handle_mouse_input(self, mouse);
             }
-            Event::Resize(_, _) | Event::FocusGained | Event::FocusLost | Event::Paste(_) => {
-                todo!("Handle resize, focus, and paste events");
-            }
+            Event::Resize(_, _) | Event::FocusGained | Event::FocusLost | Event::Paste(_) => {}
         }
         Ok(true)
     }
