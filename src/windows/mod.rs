@@ -3,6 +3,7 @@
 
 pub(crate) mod editor;
 pub(crate) mod jump_to_byte;
+pub(crate) mod search;
 pub(crate) mod unsaved_changes;
 
 use tui::widgets::Paragraph;
@@ -17,6 +18,7 @@ pub(crate) enum Window {
     Ascii,
     Hex,
     JumpToByte,
+    Search,
     UnsavedChanges,
     Label(usize),
     Unhandled,

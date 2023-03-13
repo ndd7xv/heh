@@ -11,6 +11,7 @@ use arboard::Clipboard;
 use crossterm::event::{self, Event};
 
 use crate::decoder::Encoding;
+use crate::windows::search::Search;
 use crate::{
     input,
     label::LabelHandler,
@@ -241,6 +242,13 @@ impl Application {
             }
             Window::JumpToByte => {
                 self.key_handler = Box::from(JumpToByte::new());
+                self.display.comp_layouts.popup = ScreenHandler::calculate_popup_dimensions(
+                    self.display.terminal_size,
+                    self.key_handler.as_ref(),
+                );
+            }
+            Window::Search => {
+                self.key_handler = Box::from(Search::new());
                 self.display.comp_layouts.popup = ScreenHandler::calculate_popup_dimensions(
                     self.display.terminal_size,
                     self.key_handler.as_ref(),
