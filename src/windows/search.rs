@@ -9,13 +9,15 @@ use crate::{app::AppData, label::LabelHandler, screen::ScreenHandler};
 use super::{adjust_offset, KeyHandler, PopupOutput, Window};
 
 /// A window that accepts either a hexadecimal or an ASCII sequence and moves cursor to the next
-/// occurence of this sequence
+/// occurrence of this sequence
 ///
 /// This can be opened by pressing `CNTRLf`.
 ///
-/// Each symbol group is either parsed as hexadecimal if it is preceded with "0x", or decimal if not.
-/// Replace ASCII "0x", with "0x30x", (0x30 is hexadecimal for ascii 0) e.g.
-/// to search for "0xFF" search for "0x30xFF" instead.
+/// Each symbol group is either parsed as hexadecimal if it is preceded with "0x", or decimal if
+/// not.
+///
+/// Replace ASCII "0x", with "0x30x", (0x30 is hexadecimal for ascii 0) e.g. to search for "0xFF"
+/// in ASCII, search for "0x30xFF" instead.
 #[derive(PartialEq, Eq)]
 pub(crate) struct Search {
     pub(crate) input: String,

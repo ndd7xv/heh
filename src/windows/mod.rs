@@ -3,8 +3,8 @@
 
 pub(crate) mod editor;
 pub(crate) mod jump_to_byte;
-pub(crate) mod unsaved_changes;
 pub(crate) mod search;
+pub(crate) mod unsaved_changes;
 
 use tui::widgets::Paragraph;
 
