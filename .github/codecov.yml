@@ -1,0 +1,16 @@
+coverage:
+  # Should be fixed with https://github.com/ndd7xv/heh/issues/48
+  range: 85..100
+  round: down
+  precision: 1
+  status:
+    project:
+      default:
+        threshold: 1%
+
+ignore:
+  - "tests"
+
+comment:
+  layout: "files"
+  require_changes: yes

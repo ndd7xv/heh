@@ -314,7 +314,7 @@ pub(crate) fn handle_mouse_input(app: &mut Application, mouse: MouseEvent) {
     }
 }
 
-/// A wrapper around [`handle_cursor`] that does the additional things that come with a click.
+/// A wrapper around [`handle_editor_cursor_action`] that does the additional things that come with a click.
 #[allow(clippy::cast_possible_truncation)]
 fn handle_editor_click(
     window: Window,
@@ -350,7 +350,7 @@ fn handle_editor_click(
     res
 }
 
-/// A wrapper around [`handle_cursor`] that does the additional things that come with a drag.
+/// A wrapper around [`handle_editor_cursor_action`] that does the additional things that come with a drag.
 #[allow(clippy::cast_possible_truncation)]
 fn handle_editor_drag(
     window: Window,

@@ -1,6 +1,11 @@
 # heh
 
-The HEx Helper is a cross-platform terminal UI used for modifying file data in hex or ASCII. It aims to replicate some of the look of hexyl while functionaly acting like a terminal UI version of GHex.
+[![Crates.io](https://img.shields.io/crates/v/heh.svg)](https://crates.io/crates/heh)
+[![Codecov](https://codecov.io/github/ndd7xv/heh/coverage.svg?branch=master)](https://codecov.io/gh/ndd7xv/heh)
+[![Dependency status](https://deps.rs/repo/github/ndd7xv/heh/status.svg)](https://deps.rs/repo/github/ndd7xv/heh)
+<!--- [![Documentation](https://docs.rs/heh/badge.svg)](https://docs.rs/heh/) If https://github.com/rust-lang/docs.rs/issues/238#issuecomment-631333050 is ever closed?-->
+
+The HEx Helper is a cross-platform terminal UI used for modifying file data in hex or ASCII. It aims to replicate some of the look of hexyl while functionally acting like a terminal UI version of GHex.
 
 __heh is currently in alpha - it's not ready to be used in any production manner. Notably, it does not store backups if killed or crashing and there is no undo option after deleting a byte.__
 
@@ -46,10 +51,4 @@ OPTIONS:
 ```
 # Contributing
 
-Thanks for you interest in contributing! Changes of all types are welcome, from feature additions and major code refactoring to the tiniest typo fix. If you want to make change,
-
-1. Fork this repository
-2. Make desired changes in (a) descriptive commit(s)
-3. Make a PR, linking any issues that may be related
-
-...and follow the [Rust Code of Conduct](https://www.rust-lang.org/policies/code-of-conduct) all the way through!
+See [CONTRIBUTING.md](CONTRIBUTING.md).
