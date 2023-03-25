@@ -4,6 +4,7 @@ use std::{
     cmp,
     error::Error,
     io::{self, Stdout},
+    rc::Rc,
 };
 
 use crossterm::{
@@ -40,7 +41,7 @@ pub(crate) struct ComponentLayouts {
     line_numbers: Rect,
     pub(crate) hex: Rect,
     pub(crate) ascii: Rect,
-    labels: Vec<Rect>,
+    labels: Rc<Vec<Rect>>,
     pub(crate) popup: Rect,
     pub(crate) bytes_per_line: usize,
     pub(crate) lines_per_screen: usize,
@@ -110,8 +111,8 @@ impl ScreenHandler {
                 Constraint::Length((frame.width - 10) / 4),
             ])
             .split(sections[0]);
-        let mut labels = Vec::with_capacity(12);
-        let label_cols = Layout::default()
+        let mut labels = Rc::new(Vec::with_capacity(12));
+        let label_columns = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
                 Constraint::Ratio(1, 4),
@@ -120,18 +121,20 @@ impl ScreenHandler {
                 Constraint::Ratio(1, 4),
             ])
             .split(sections[1]);
-        for label in label_cols {
-            labels.append(
-                &mut Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Ratio(1, 4),
-                        Constraint::Ratio(1, 4),
-                        Constraint::Ratio(1, 4),
-                        Constraint::Ratio(1, 4),
-                    ])
-                    .split(label),
-            );
+        for label in label_columns.iter() {
+            let column_layout = &mut Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Ratio(1, 4),
+                    Constraint::Ratio(1, 4),
+                    Constraint::Ratio(1, 4),
+                    Constraint::Ratio(1, 4),
+                ])
+                .split(*label);
+
+            if let Some(labels) = Rc::get_mut(&mut labels) {
+                labels.extend_from_slice(column_layout);
+            }
         }
 
         // Calculate popup dimensions
@@ -148,7 +151,7 @@ impl ScreenHandler {
             popup,
             bytes_per_line,
             lines_per_screen,
-            labels,
+            labels: labels.to_vec().into(),
         }
     }
 
