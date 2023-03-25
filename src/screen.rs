@@ -159,6 +159,9 @@ impl ScreenHandler {
     /// [`calculate_dimensions`](Self::calculate_dimensions) and
     /// [`set_focused_window`](crate::app::Application::set_focused_window)
     /// since the dimensions are constant and are only changed when the popup changes.
+    ///
+    /// In the case that window is a an editor and not a popup, returns the default Rect,
+    /// which is essentially not displayed at all.
     pub(crate) fn calculate_popup_dimensions(frame: Rect, window: &dyn KeyHandler) -> Rect {
         window.dimensions().map_or_else(Rect::default, |dimensions| popup_rect(dimensions, frame))
     }
@@ -456,4 +459,46 @@ fn popup_rect((x, y): (u16, u16), r: Rect) -> Rect {
             .as_ref(),
         )
         .split(popup_layout[1])[1]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calculate_dimensions_no_popup() {
+        let width = 100;
+        let height = 100;
+
+        // Given a terminal size of 100 x 100, when dimensions are calculated
+        let key_handler: Box<dyn KeyHandler> = Box::from(Editor::Ascii);
+        let layout =
+            ScreenHandler::calculate_dimensions(Rect::new(0, 0, width, height), &*key_handler);
+
+        // The "editors" section, which consists of the line number column, Hex input box, and
+        // ASCII input box should have a size of height - 12 (there are 4 labels per column and
+        // each label takes 3 lines; each takes the vertical space alongside these components).
+        assert_eq!(layout.line_numbers.height, height - 12);
+        assert_eq!(layout.hex.height, height - 12);
+        assert_eq!(layout.ascii.height, height - 12);
+
+        // The width of the line numbers column is hard coded to 10,
+        assert_eq!(layout.line_numbers.width, 10);
+        // The Hex editor takes up 3/4ths of the remaining horizontal space (rounded down as to not
+        // overflow)...
+        assert_eq!(layout.hex.width, (width - 10) * 3 / 4 - 1);
+        // And the ASCII editor takes up the remaining 1/4th. In some instances, the dimensions
+        // are larger than the layout, so instead of asserting (width - 10) / 4 we assert the
+        // remaining space.
+        assert_eq!(layout.ascii.width, width - (10 + ((width - 10) * 3 / 4 - 1)));
+
+        // The remaining space should consist of the labels in a 4 by 4 grid. Since the height
+        // of each label column is hard set to 12, 4 labels in a column should have a width of 3.
+        for label in &*layout.labels {
+            assert_eq!(label.width, width / 4);
+            assert_eq!(label.height, 3);
+        }
+    }
+
+    // TODO: Create a test for asserting the dimension of each popup
 }
