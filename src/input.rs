@@ -180,6 +180,12 @@ fn handle_control_options(char: char, app: &mut Application) -> Result<bool, Box
 
             app.labels.notification = String::from("Saved!");
         }
+        'e' => {
+            app.labels.switch_endianness();
+            app.labels.update_all(&app.data.contents[app.data.offset..]);
+
+            app.labels.notification = app.labels.endianness.to_string();
+        }
         'z' => {
             if let Some(action) = app.data.actions.pop() {
                 match action {
