@@ -117,7 +117,7 @@ pub(crate) fn perform_search(
     }
 
     // Cached search data may be invalidated if contents have changed
-    if app.hash_contents() != app.hashed_contents {
+    if app.dirty {
         app.reindex_search();
     }
 

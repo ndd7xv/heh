@@ -204,6 +204,8 @@ impl ScreenHandler {
         labels: &LabelHandler,
         window: &dyn KeyHandler,
     ) -> Result<(), Box<dyn Error>> {
+        app_info.contents.compute_new_window(app_info.offset);
+
         self.terminal.draw(|f| {
             // We check if we need to recompute the terminal size in the case that the saved off
             // variable differs from the current frame, which can occur when a terminal is resized

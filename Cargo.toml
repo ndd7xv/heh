@@ -16,6 +16,8 @@ tui = {package = "ratatui", version = "0.21", default-features = false, features
 crossterm = "0.26"
 clap = { version = "4.3", features = ["derive"] }
 arboard = { version = "3.2", default-features = false }
+memmap2 = "0.5.10"
+crossbeam = "0.8.2"
 
 [profile.dev]
 opt-level = 1 # Default would excessively lag
