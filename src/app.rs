@@ -3,13 +3,12 @@
 //! The application holds the main components of the other modules, like the [`ScreenHandler`],
 //! [`LabelHandler`], and input handling, as well as the state data that each of them need.
 
-use std::{
-    collections::hash_map::DefaultHasher, error::Error, fs::File, hash::Hasher, io::Read, process,
-};
+use std::{error::Error, fs::File, process};
 
 use arboard::Clipboard;
 use crossterm::event::{self, Event};
 
+use crate::buffer::AsyncBuffer;
 use crate::decoder::Encoding;
 use crate::windows::search::Search;
 use crate::{
@@ -49,10 +48,7 @@ pub(crate) enum Action {
     /// Tracks a user keypress to modify the contents of the file.
     CharacterInput(usize, u8, Option<Nibble>),
 
-    /// Tracks when a user deletes the byte before the cursor.
-    Backspace(usize, u8),
-
-    /// Tracks when a user deletes the byte at the current cursor.
+    /// Tracks when a user deletes a byte..
     Delete(usize, u8),
 }
 
@@ -62,13 +58,13 @@ pub(crate) struct AppData {
     pub(crate) file: File,
 
     /// The file content.
-    pub(crate) contents: Vec<u8>,
+    pub(crate) contents: AsyncBuffer,
 
     /// The decoding used for the editor.
     pub(crate) encoding: Encoding,
 
-    /// The hashed content, used for checking if anything has been changed.
-    pub(crate) hashed_contents: u64,
+    /// The dirty flag, used when the buffer is edited and is not flushed to disk.
+    pub(crate) dirty: bool,
 
     /// Offset of the first content byte that is visible on the screen.
     pub(crate) start_address: usize,
@@ -117,13 +113,6 @@ impl AppData {
             .filter_map(|(idx, w)| (w == self.search_term.as_bytes()).then_some(idx))
             .collect();
     }
-
-    /// Hashes the contents of a file and is used to check if there are any changes.
-    pub(crate) fn hash_contents(&self) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        hasher.write(&self.contents);
-        hasher.finish()
-    }
 }
 
 /// Application provides the user interaction interface and renders the terminal screen in response
@@ -150,12 +139,11 @@ impl Application {
     ///
     /// This errors out if the file specified is empty.
     pub(crate) fn new(
-        mut file: File,
+        file: File,
         encoding: Encoding,
         offset: usize,
     ) -> Result<Self, Box<dyn Error>> {
-        let mut contents = Vec::new();
-        file.read_to_end(&mut contents).expect("Reading the contents of the file was interrupted.");
+        let contents = AsyncBuffer::new(&file)?;
         if contents.is_empty() {
             eprintln!("heh does not support editing empty files");
             process::exit(1);
@@ -175,12 +163,12 @@ impl Application {
 
         let display = ScreenHandler::new()?;
 
-        let mut app = Self {
+        let app = Self {
             data: AppData {
                 file,
                 contents,
                 encoding,
-                hashed_contents: 0,
+                dirty: false,
                 start_address: (offset / display.comp_layouts.bytes_per_line)
                     * display.comp_layouts.bytes_per_line,
                 offset,
@@ -199,8 +187,6 @@ impl Application {
             labels,
             key_handler: Box::from(Editor::Hex),
         };
-
-        app.data.hashed_contents = app.data.hash_contents();
 
         Ok(app)
     }

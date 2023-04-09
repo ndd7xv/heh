@@ -15,6 +15,7 @@ use app::Application;
 use crate::decoder::Encoding;
 
 mod app;
+mod buffer;
 mod character;
 mod chunk;
 mod decoder;

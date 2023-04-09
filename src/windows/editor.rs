@@ -149,7 +149,7 @@ impl KeyHandler for Editor {
         labels: &mut LabelHandler,
     ) {
         if app.offset > 0 {
-            app.actions.push(Action::Backspace(
+            app.actions.push(Action::Delete(
                 app.offset.saturating_sub(1),
                 app.contents.remove(app.offset - 1),
             ));
@@ -187,6 +187,7 @@ impl KeyHandler for Editor {
                     None,
                 ));
                 app.contents[app.offset] = c as u8;
+                app.dirty = true;
                 app.offset = cmp::min(app.offset.saturating_add(1), app.contents.len() - 1);
                 labels.update_all(&app.contents[app.offset..]);
                 adjust_offset(app, display, labels);
@@ -225,6 +226,7 @@ impl KeyHandler for Editor {
                         }
                     }
                     app.nibble.toggle();
+                    app.dirty = true;
                 } else {
                     labels.notification = format!("Invalid Hex: {c}");
                 }
