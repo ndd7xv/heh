@@ -194,14 +194,14 @@ impl LabelHandler {
             Endianness::LittleEndian => f32::from_le_bytes(bytes.try_into().unwrap()),
             Endianness::BigEndian => f32::from_be_bytes(bytes.try_into().unwrap()),
         };
-        self.float_thirtytwo = format!("{:e}", value);
+        self.float_thirtytwo = format!("{value:e}");
     }
     fn update_float_sixtyfour(&mut self, bytes: &[u8]) {
         let value = match self.endianness {
             Endianness::LittleEndian => f64::from_le_bytes(bytes.try_into().unwrap()),
             Endianness::BigEndian => f64::from_be_bytes(bytes.try_into().unwrap()),
         };
-        self.float_sixtyfour = format!("{:e}", value);
+        self.float_sixtyfour = format!("{value:e}");
     }
     fn update_binary(&mut self, bytes: &[u8]) {
         self.binary = bytes
