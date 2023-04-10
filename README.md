@@ -28,6 +28,7 @@ Terminal UI Commands:
     CNTRLs              Save
     CNTRLq              Quit
     CNTRLj              Jump to Byte
+    CNTRLe              Change endianness
 
 Left-clicking on a label will copy the contents to the clipboard.
 Left-clicking on the ASCII or hex table will focus it.

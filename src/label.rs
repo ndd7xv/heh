@@ -1,6 +1,9 @@
 //! Labels in the bottom half of the terminal UI that provide information based on cursor position.
 
 #![allow(clippy::cast_possible_wrap)]
+
+use std::fmt;
+use std::fmt::Formatter;
 use std::ops::Index;
 
 pub(crate) static LABEL_TITLES: [&str; 16] = [
@@ -23,6 +26,22 @@ pub(crate) static LABEL_TITLES: [&str; 16] = [
 ];
 
 #[derive(Default)]
+pub(crate) enum Endianness {
+    #[default]
+    LittleEndian,
+    BigEndian,
+}
+
+impl fmt::Display for Endianness {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Endianness::LittleEndian => write!(f, "Little Endian"),
+            Endianness::BigEndian => write!(f, "Big Endian"),
+        }
+    }
+}
+
+#[derive(Default)]
 pub(crate) struct LabelHandler {
     signed_eight: String,
     signed_sixteen: String,
@@ -41,6 +60,7 @@ pub(crate) struct LabelHandler {
     stream_length_string: String,
     pub(crate) offset: String,
     pub(crate) notification: String,
+    pub(crate) endianness: Endianness,
 }
 
 impl Index<&str> for LabelHandler {
@@ -112,6 +132,12 @@ impl LabelHandler {
         self.stream_length = length;
         self.stream_length_string = self.stream_length.to_string();
     }
+    pub(crate) fn switch_endianness(&mut self) {
+        self.endianness = match self.endianness {
+            Endianness::LittleEndian => Endianness::BigEndian,
+            Endianness::BigEndian => Endianness::LittleEndian,
+        };
+    }
     pub(crate) const fn get_stream_length(&self) -> usize {
         self.stream_length
     }
@@ -119,31 +145,63 @@ impl LabelHandler {
         self.signed_eight = (bytes[0] as i8).to_string();
     }
     fn update_signed_sixteen(&mut self, bytes: &[u8]) {
-        self.signed_sixteen = i16::from_le_bytes(bytes.try_into().unwrap()).to_string();
+        self.signed_sixteen = match self.endianness {
+            Endianness::LittleEndian => i16::from_le_bytes(bytes.try_into().unwrap()),
+            Endianness::BigEndian => i16::from_be_bytes(bytes.try_into().unwrap()),
+        }
+        .to_string();
     }
     fn update_signed_thirtytwo(&mut self, bytes: &[u8]) {
-        self.signed_thirtytwo = i32::from_le_bytes(bytes.try_into().unwrap()).to_string();
+        self.signed_thirtytwo = match self.endianness {
+            Endianness::LittleEndian => i32::from_le_bytes(bytes.try_into().unwrap()),
+            Endianness::BigEndian => i32::from_be_bytes(bytes.try_into().unwrap()),
+        }
+        .to_string();
     }
     fn update_signed_sixtyfour(&mut self, bytes: &[u8]) {
-        self.signed_sixtyfour = i64::from_le_bytes(bytes.try_into().unwrap()).to_string();
+        self.signed_sixtyfour = match self.endianness {
+            Endianness::LittleEndian => i64::from_le_bytes(bytes.try_into().unwrap()),
+            Endianness::BigEndian => i64::from_be_bytes(bytes.try_into().unwrap()),
+        }
+        .to_string();
     }
     fn update_unsigned_eight(&mut self, bytes: &[u8]) {
         self.unsigned_eight = (bytes[0]).to_string();
     }
     fn update_unsigned_sixteen(&mut self, bytes: &[u8]) {
-        self.unsigned_sixteen = u16::from_le_bytes(bytes.try_into().unwrap()).to_string();
+        self.unsigned_sixteen = match self.endianness {
+            Endianness::LittleEndian => u16::from_le_bytes(bytes.try_into().unwrap()),
+            Endianness::BigEndian => u16::from_be_bytes(bytes.try_into().unwrap()),
+        }
+        .to_string();
     }
     fn update_unsigned_thirtytwo(&mut self, bytes: &[u8]) {
-        self.unsigned_thirtytwo = u32::from_le_bytes(bytes.try_into().unwrap()).to_string();
+        self.unsigned_thirtytwo = match self.endianness {
+            Endianness::LittleEndian => u32::from_le_bytes(bytes.try_into().unwrap()),
+            Endianness::BigEndian => u32::from_be_bytes(bytes.try_into().unwrap()),
+        }
+        .to_string();
     }
     fn update_unsigned_sixtyfour(&mut self, bytes: &[u8]) {
-        self.unsigned_sixtyfour = u64::from_le_bytes(bytes.try_into().unwrap()).to_string();
+        self.unsigned_sixtyfour = match self.endianness {
+            Endianness::LittleEndian => u64::from_le_bytes(bytes.try_into().unwrap()),
+            Endianness::BigEndian => u64::from_be_bytes(bytes.try_into().unwrap()),
+        }
+        .to_string();
     }
     fn update_float_thirtytwo(&mut self, bytes: &[u8]) {
-        self.float_thirtytwo = format!("{:e}", f32::from_le_bytes(bytes.try_into().unwrap()));
+        let value = match self.endianness {
+            Endianness::LittleEndian => f32::from_le_bytes(bytes.try_into().unwrap()),
+            Endianness::BigEndian => f32::from_be_bytes(bytes.try_into().unwrap()),
+        };
+        self.float_thirtytwo = format!("{value:e}");
     }
     fn update_float_sixtyfour(&mut self, bytes: &[u8]) {
-        self.float_sixtyfour = format!("{:e}", f64::from_le_bytes(bytes.try_into().unwrap()));
+        let value = match self.endianness {
+            Endianness::LittleEndian => f64::from_le_bytes(bytes.try_into().unwrap()),
+            Endianness::BigEndian => f64::from_be_bytes(bytes.try_into().unwrap()),
+        };
+        self.float_sixtyfour = format!("{value:e}");
     }
     fn update_binary(&mut self, bytes: &[u8]) {
         self.binary = bytes
