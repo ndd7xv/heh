@@ -91,7 +91,7 @@ pub(crate) fn handle_character_input(
     modifiers: KeyModifiers,
 ) -> Result<bool, Box<dyn Error>> {
     if modifiers == KeyModifiers::CONTROL {
-        handle_control_options(char, app)?;
+        return handle_control_options(char, app);
     } else if modifiers == KeyModifiers::ALT {
         match char {
             '=' => {
