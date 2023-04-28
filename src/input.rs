@@ -186,6 +186,12 @@ fn handle_control_options(char: char, app: &mut Application) -> Result<bool, Box
 
             app.labels.notification = app.labels.endianness.to_string();
         }
+        'd' => {
+            app.key_handler.page_down(&mut app.data, &mut app.display, &mut app.labels);
+        }
+        'u' => {
+            app.key_handler.page_up(&mut app.data, &mut app.display, &mut app.labels);
+        }
         'z' => {
             if let Some(action) = app.data.actions.pop() {
                 match action {
