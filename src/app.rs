@@ -206,9 +206,11 @@ impl Application {
         let event = event::read()?;
         match event {
             Event::Key(key) => {
+                self.labels.notification.clear();
                 return input::handle_key_input(self, key);
             }
             Event::Mouse(mouse) => {
+                self.labels.notification.clear();
                 input::handle_mouse_input(self, mouse);
             }
             Event::Resize(_, _) | Event::FocusGained | Event::FocusLost | Event::Paste(_) => {}
