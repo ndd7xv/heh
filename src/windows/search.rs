@@ -1,3 +1,5 @@
+use std::cmp::min;
+
 use tui::{
     style::{Color, Style},
     text::Span,
@@ -54,19 +56,9 @@ impl KeyHandler for Search {
             labels.notification = "Empty search query".into();
             return;
         }
-        let needle_offset_delta = if let Some(p) = app.contents[app.offset..]
-            .windows(byte_sequence_to_search.len())
-            .position(|w| w == byte_sequence_to_search)
-        {
-            p
-        } else {
-            labels.notification = "Query not found".into();
-            return;
-        };
 
-        app.offset += needle_offset_delta;
-        labels.update_all(&app.contents[app.offset..]);
-        adjust_offset(app, display, labels);
+        labels.search_term = byte_sequence_to_search;
+        perform_search(app, display, labels, SearchDirection::Forward);
     }
     fn dimensions(&self) -> Option<(u16, u16)> {
         Some((50, 3))
@@ -106,6 +98,61 @@ fn parse_input(input: &str) -> Result<Vec<u8>, String> {
             }
         }
     }
+}
+
+pub(crate) enum SearchDirection {
+    Forward,
+    Backward
+}
+
+pub(crate) fn perform_search(app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler, search_direction: SearchDirection) {
+    if labels.search_term.is_empty() { return; }
+
+    let Some(found_position) = (match search_direction {
+        SearchDirection::Forward => next_search(app, &labels.search_term),
+        SearchDirection::Backward => previous_search(app, &labels.search_term),
+    }) else {
+        labels.notification = "Query not found".into();
+        return;
+    };
+
+    app.offset = found_position;
+    labels.update_all(&app.contents[app.offset..]);
+    adjust_offset(app, display, labels);
+}
+
+fn next_search(app: &mut AppData, search_term: &Vec<u8>) -> Option<usize> {
+    // Add 1 to app.offset so that the search doesn't count the current byte
+    let start_offset = min(app.offset + 1, app.contents.len());
+    // Find previous occurences if none can be found before EOF
+    app.contents[start_offset..]
+        .windows(search_term.len())
+        .position(|w| w == search_term)
+        .map(|position| position + start_offset)
+        .or_else(||
+            app.contents[..min(start_offset + search_term.len(), app.contents.len())]
+                .windows(search_term.len())
+                .position(|w| w == search_term)
+        )
+}
+
+fn previous_search(app: &mut AppData, search_term: &Vec<u8>) -> Option<usize> {
+    // Subtract 1 from app.offset so that the search doesn't count the current byte
+    let start_offset = app.offset.saturating_sub(1);
+    app.contents[..start_offset]
+        .windows(search_term.len())
+        .enumerate()
+        .rev()
+        .find(|w| w.1 == search_term)
+        .map(|position| position.0)
+        .or_else(||
+            app.contents[start_offset..]
+                .windows(search_term.len())
+                .enumerate()
+                .rev()
+                .find(|w| w.1 == search_term)
+                .map(|position| position.0 + start_offset)
+        )
 }
 
 #[cfg(test)]
