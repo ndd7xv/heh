@@ -14,7 +14,11 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
 use crate::{
     app::{Action, Application, Nibble},
     label::LABEL_TITLES,
-    windows::{adjust_offset, PopupOutput, Window, search::{SearchDirection, perform_search}},
+    windows::{
+        adjust_offset,
+        search::{perform_search, SearchDirection},
+        PopupOutput, Window,
+    },
 };
 
 /// Wrapper function that calls the corresponding [`KeyHandler`](crate::windows::KeyHandler) methods of
@@ -196,10 +200,20 @@ fn handle_control_options(char: char, app: &mut Application) -> Result<bool, Box
             app.key_handler.page_up(&mut app.data, &mut app.display, &mut app.labels);
         }
         'n' => {
-            perform_search(&mut app.data, &mut app.display, &mut app.labels, SearchDirection::Forward);
+            perform_search(
+                &mut app.data,
+                &mut app.display,
+                &mut app.labels,
+                &SearchDirection::Forward,
+            );
         }
         'p' => {
-            perform_search(&mut app.data, &mut app.display, &mut app.labels, SearchDirection::Backward);
+            perform_search(
+                &mut app.data,
+                &mut app.display,
+                &mut app.labels,
+                &SearchDirection::Backward,
+            );
         }
         'z' => {
             if let Some(action) = app.data.actions.pop() {

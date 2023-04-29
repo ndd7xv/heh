@@ -58,7 +58,7 @@ impl KeyHandler for Search {
         }
 
         labels.search_term = byte_sequence_to_search;
-        perform_search(app, display, labels, SearchDirection::Forward);
+        perform_search(app, display, labels, &SearchDirection::Forward);
     }
     fn dimensions(&self) -> Option<(u16, u16)> {
         Some((50, 3))
@@ -102,16 +102,25 @@ fn parse_input(input: &str) -> Result<Vec<u8>, String> {
 
 pub(crate) enum SearchDirection {
     Forward,
-    Backward
+    Backward,
 }
 
-pub(crate) fn perform_search(app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler, search_direction: SearchDirection) {
-    if labels.search_term.is_empty() { return; }
+pub(crate) fn perform_search(
+    app: &mut AppData,
+    display: &mut ScreenHandler,
+    labels: &mut LabelHandler,
+    search_direction: &SearchDirection,
+) {
+    if labels.search_term.is_empty() {
+        return;
+    }
 
-    let Some(found_position) = (match search_direction {
+    let found_position = if let Some(found_position) = match search_direction {
         SearchDirection::Forward => next_search(app, &labels.search_term),
         SearchDirection::Backward => previous_search(app, &labels.search_term),
-    }) else {
+    } {
+        found_position
+    } else {
         labels.notification = "Query not found".into();
         return;
     };
@@ -129,11 +138,11 @@ fn next_search(app: &mut AppData, search_term: &Vec<u8>) -> Option<usize> {
         .windows(search_term.len())
         .position(|w| w == search_term)
         .map(|position| position + start_offset)
-        .or_else(||
+        .or_else(|| {
             app.contents[..min(start_offset + search_term.len(), app.contents.len())]
                 .windows(search_term.len())
                 .position(|w| w == search_term)
-        )
+        })
 }
 
 fn previous_search(app: &mut AppData, search_term: &Vec<u8>) -> Option<usize> {
@@ -145,14 +154,14 @@ fn previous_search(app: &mut AppData, search_term: &Vec<u8>) -> Option<usize> {
         .rev()
         .find(|w| w.1 == search_term)
         .map(|position| position.0)
-        .or_else(||
+        .or_else(|| {
             app.contents[start_offset..]
                 .windows(search_term.len())
                 .enumerate()
                 .rev()
                 .find(|w| w.1 == search_term)
                 .map(|position| position.0 + start_offset)
-        )
+        })
 }
 
 #[cfg(test)]

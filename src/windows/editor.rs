@@ -6,7 +6,11 @@ use crate::{
     screen::ScreenHandler,
 };
 
-use super::{adjust_offset, KeyHandler, Window, search::{SearchDirection, perform_search}};
+use super::{
+    adjust_offset,
+    search::{perform_search, SearchDirection},
+    KeyHandler, Window,
+};
 
 /// The main windows that allow users to edit HEX and ASCII.
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -228,7 +232,12 @@ impl KeyHandler for Editor {
         }
     }
 
-    fn enter(&mut self, data: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
-        perform_search(data, display, labels, SearchDirection::Forward);
+    fn enter(
+        &mut self,
+        data: &mut AppData,
+        display: &mut ScreenHandler,
+        labels: &mut LabelHandler,
+    ) {
+        perform_search(data, display, labels, &SearchDirection::Forward);
     }
 }
