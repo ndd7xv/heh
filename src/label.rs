@@ -61,7 +61,6 @@ pub(crate) struct LabelHandler {
     pub(crate) offset: String,
     pub(crate) notification: String,
     pub(crate) endianness: Endianness,
-    pub(crate) search_term: Vec<u8>,
 }
 
 impl Index<&str> for LabelHandler {

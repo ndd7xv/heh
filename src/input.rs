@@ -119,7 +119,7 @@ pub(crate) fn handle_character_input(
         match char {
             'q' if is_hex => {
                 if !app.key_handler.is_focusing(Window::UnsavedChanges) {
-                    if app.hash_contents() == app.data.hashed_contents {
+                    if app.data.hash_contents() == app.data.hashed_contents {
                         return Ok(false);
                     }
                     app.set_focused_window(Window::UnsavedChanges);
@@ -172,7 +172,7 @@ fn handle_control_options(char: char, app: &mut Application) -> Result<bool, Box
         }
         'q' => {
             if !app.key_handler.is_focusing(Window::UnsavedChanges) {
-                if app.hash_contents() == app.data.hashed_contents {
+                if app.data.hash_contents() == app.data.hashed_contents {
                     return Ok(false);
                 }
                 app.set_focused_window(Window::UnsavedChanges);
@@ -183,7 +183,7 @@ fn handle_control_options(char: char, app: &mut Application) -> Result<bool, Box
             app.data.file.write_all(&app.data.contents)?;
             app.data.file.set_len(app.data.contents.len() as u64)?;
 
-            app.data.hashed_contents = app.hash_contents();
+            app.data.hashed_contents = app.data.hash_contents();
 
             app.labels.notification = String::from("Saved!");
         }

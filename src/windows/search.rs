@@ -1,5 +1,3 @@
-use std::cmp::min;
-
 use tui::{
     style::{Color, Style},
     text::Span,
@@ -57,7 +55,10 @@ impl KeyHandler for Search {
             return;
         }
 
-        labels.search_term = byte_sequence_to_search;
+        app.search_term = String::from_utf8(byte_sequence_to_search)
+            .expect("parse_input should return valid utf-8");
+        app.reindex_search();
+
         perform_search(app, display, labels, &SearchDirection::Forward);
     }
     fn dimensions(&self) -> Option<(u16, u16)> {
@@ -111,57 +112,50 @@ pub(crate) fn perform_search(
     labels: &mut LabelHandler,
     search_direction: &SearchDirection,
 ) {
-    if labels.search_term.is_empty() {
+    if app.search_term.is_empty() {
+        return;
+    }
+    if app.search_offsets.is_empty() {
+        labels.notification = "Query not found".into();
         return;
     }
 
-    let found_position = if let Some(found_position) = match search_direction {
-        SearchDirection::Forward => next_search(app, &labels.search_term),
-        SearchDirection::Backward => previous_search(app, &labels.search_term),
-    } {
-        found_position
-    } else {
-        labels.notification = "Query not found".into();
-        return;
+    // Cached search data may be invalidated if contents have changed
+    if app.hash_contents() != app.hashed_contents {
+        app.reindex_search();
+    }
+
+    // Find closest index of a match to the current offset, wrapping to the other end of the file if necessary
+    let idx = match search_direction {
+        SearchDirection::Forward => match app.search_offsets.binary_search(&(app.offset + 1)) {
+            Ok(i) => i,
+            Err(i) => {
+                if i >= app.search_offsets.len() {
+                    0
+                } else {
+                    i
+                }
+            }
+        },
+        SearchDirection::Backward => match app.search_offsets.binary_search(&(app.offset - 1)) {
+            Ok(i) => i,
+            Err(i) => {
+                if i == 0 {
+                    app.search_offsets.len() - 1
+                } else {
+                    i - 1
+                }
+            }
+        },
     };
+
+    let found_position = *app.search_offsets.get(idx).expect("There should be at least one result");
+    labels.notification =
+        format!("Search: {} [{}/{}]", app.search_term, idx + 1, app.search_offsets.len());
 
     app.offset = found_position;
     labels.update_all(&app.contents[app.offset..]);
     adjust_offset(app, display, labels);
-}
-
-fn next_search(app: &mut AppData, search_term: &Vec<u8>) -> Option<usize> {
-    // Add 1 to app.offset so that the search doesn't count the current byte
-    let start_offset = min(app.offset + 1, app.contents.len());
-    // Find previous occurences if none can be found before EOF
-    app.contents[start_offset..]
-        .windows(search_term.len())
-        .position(|w| w == search_term)
-        .map(|position| position + start_offset)
-        .or_else(|| {
-            app.contents[..min(start_offset + search_term.len(), app.contents.len())]
-                .windows(search_term.len())
-                .position(|w| w == search_term)
-        })
-}
-
-fn previous_search(app: &mut AppData, search_term: &Vec<u8>) -> Option<usize> {
-    // Subtract 1 from app.offset so that the search doesn't count the current byte
-    let start_offset = app.offset.saturating_sub(1);
-    app.contents[..start_offset]
-        .windows(search_term.len())
-        .enumerate()
-        .rev()
-        .find(|w| w.1 == search_term)
-        .map(|position| position.0)
-        .or_else(|| {
-            app.contents[start_offset..]
-                .windows(search_term.len())
-                .enumerate()
-                .rev()
-                .find(|w| w.1 == search_term)
-                .map(|position| position.0 + start_offset)
-        })
 }
 
 #[cfg(test)]
