@@ -115,14 +115,16 @@ pub(crate) fn perform_search(
     if app.search_term.is_empty() {
         return;
     }
-    if app.search_offsets.is_empty() {
-        labels.notification = "Query not found".into();
-        return;
-    }
 
     // Cached search data may be invalidated if contents have changed
     if app.hash_contents() != app.hashed_contents {
         app.reindex_search();
+    }
+
+    // This check needs to happen after reindexing search
+    if app.search_offsets.is_empty() {
+        labels.notification = "Query not found".into();
+        return;
     }
 
     // Find closest index of a match to the current offset, wrapping to the other end of the file if necessary
