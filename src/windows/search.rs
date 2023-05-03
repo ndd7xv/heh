@@ -138,29 +138,29 @@ pub(crate) fn perform_search(
     adjust_offset(app, display, labels);
 }
 
+// Find closest index of a match to the current offset, wrapping to the other end of the file if necessary
+// This performs a binary search for the current offset in the list of matches. If the current
+// offset is not present, the binary search will return the index in the list of matches where
+// the current offset would fit, and from that we either pick the index to the left or right
+// depending on whether we're searching forwards or backwards from the current offset.
 fn get_next_match_index(
     search_offsets: &Vec<usize>,
     current_offset: usize,
     search_direction: &SearchDirection,
 ) -> usize {
-    // Find closest index of a match to the current offset, wrapping to the other end of the file if necessary
-    // This performs a binary search for the current offset in the list of matches. If the current
-    // offset is not present, the binary search will return the index in the list of matches where
-    // the current offset would fit, and from that we either pick the index to the left or right
-    // depending on whether we're searching forwards or backwards from the current offset.
     match search_direction {
         SearchDirection::Forward => search_offsets
             .binary_search(&(current_offset + 1))
             .unwrap_or_else(|i| if i >= search_offsets.len() { 0 } else { i }),
         SearchDirection::Backward => search_offsets
-            .binary_search(&(current_offset - 1))
+            .binary_search(&(current_offset.checked_sub(1).unwrap_or(usize::MAX)))
             .unwrap_or_else(|i| if i == 0 { search_offsets.len() - 1 } else { i - 1 }),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::parse_input;
+    use super::{get_next_match_index, parse_input, SearchDirection};
 
     #[test]
     fn test_parse() {
@@ -170,5 +170,33 @@ mod tests {
         assert_eq!(parse_input("0x30"), Ok(b"0".to_vec()));
         assert_eq!(parse_input("0x30x"), Ok(b"0x".to_vec()));
         assert_eq!(parse_input("abc0x64e"), Ok(b"abcde".to_vec()));
+    }
+
+    #[test]
+    fn test_search() {
+        fn search(search_offsets: &Vec<usize>, current_offset: usize, search_direction: &SearchDirection) -> usize {
+            let idx = get_next_match_index(&search_offsets, current_offset, search_direction);
+            search_offsets[idx]
+        }
+
+        let search_offsets = vec![1, 4, 5, 7];
+        // positioned in between matches
+        assert_eq!(search(&search_offsets, 2, &SearchDirection::Backward), 1);
+        assert_eq!(search(&search_offsets, 3, &SearchDirection::Backward), 1);
+
+        // positioned on a match
+        assert_eq!(search(&search_offsets, 4, &SearchDirection::Backward), 1);
+        assert_eq!(search(&search_offsets, 4, &SearchDirection::Forward),  5);
+
+        // wrap around
+        assert_eq!(search(&search_offsets, 7, &SearchDirection::Forward),   1);
+        assert_eq!(search(&search_offsets, 1, &SearchDirection::Backward),  7);
+        assert_eq!(search(&search_offsets, 0, &SearchDirection::Backward),  7);
+
+        // singular match
+        let search_offsets = vec![3];
+        assert_eq!(search(&search_offsets, 4, &SearchDirection::Backward), 3);
+        assert_eq!(search(&search_offsets, 3, &SearchDirection::Backward), 3);
+        assert_eq!(search(&search_offsets, 2, &SearchDirection::Backward), 3);
     }
 }
