@@ -174,8 +174,12 @@ mod tests {
 
     #[test]
     fn test_search() {
-        fn search(search_offsets: &Vec<usize>, current_offset: usize, search_direction: &SearchDirection) -> usize {
-            let idx = get_next_match_index(&search_offsets, current_offset, search_direction);
+        fn search(
+            search_offsets: &Vec<usize>,
+            current_offset: usize,
+            search_direction: &SearchDirection,
+        ) -> usize {
+            let idx = get_next_match_index(search_offsets, current_offset, search_direction);
             search_offsets[idx]
         }
 
@@ -186,12 +190,12 @@ mod tests {
 
         // positioned on a match
         assert_eq!(search(&search_offsets, 4, &SearchDirection::Backward), 1);
-        assert_eq!(search(&search_offsets, 4, &SearchDirection::Forward),  5);
+        assert_eq!(search(&search_offsets, 4, &SearchDirection::Forward), 5);
 
         // wrap around
-        assert_eq!(search(&search_offsets, 7, &SearchDirection::Forward),   1);
-        assert_eq!(search(&search_offsets, 1, &SearchDirection::Backward),  7);
-        assert_eq!(search(&search_offsets, 0, &SearchDirection::Backward),  7);
+        assert_eq!(search(&search_offsets, 7, &SearchDirection::Forward), 1);
+        assert_eq!(search(&search_offsets, 1, &SearchDirection::Backward), 7);
+        assert_eq!(search(&search_offsets, 0, &SearchDirection::Backward), 7);
 
         // singular match
         let search_offsets = vec![3];
