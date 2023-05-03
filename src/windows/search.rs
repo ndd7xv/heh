@@ -127,37 +127,35 @@ pub(crate) fn perform_search(
         return;
     }
 
-    // Find closest index of a match to the current offset, wrapping to the other end of the file if necessary
-    let idx = match search_direction {
-        SearchDirection::Forward => match app.search_offsets.binary_search(&(app.offset + 1)) {
-            Ok(i) => i,
-            Err(i) => {
-                if i >= app.search_offsets.len() {
-                    0
-                } else {
-                    i
-                }
-            }
-        },
-        SearchDirection::Backward => match app.search_offsets.binary_search(&(app.offset - 1)) {
-            Ok(i) => i,
-            Err(i) => {
-                if i == 0 {
-                    app.search_offsets.len() - 1
-                } else {
-                    i - 1
-                }
-            }
-        },
-    };
-
+    let idx = get_next_match_index(&app.search_offsets, app.offset, search_direction);
     let found_position = *app.search_offsets.get(idx).expect("There should be at least one result");
+
     labels.notification =
         format!("Search: {} [{}/{}]", app.search_term, idx + 1, app.search_offsets.len());
 
     app.offset = found_position;
     labels.update_all(&app.contents[app.offset..]);
     adjust_offset(app, display, labels);
+}
+
+fn get_next_match_index(
+    search_offsets: &Vec<usize>,
+    current_offset: usize,
+    search_direction: &SearchDirection,
+) -> usize {
+    // Find closest index of a match to the current offset, wrapping to the other end of the file if necessary
+    // This performs a binary search for the current offset in the list of matches. If the current
+    // offset is not present, the binary search will return the index in the list of matches where
+    // the current offset would fit, and from that we either pick the index to the left or right
+    // depending on whether we're searching forwards or backwards from the current offset.
+    match search_direction {
+        SearchDirection::Forward => search_offsets
+            .binary_search(&(current_offset + 1))
+            .unwrap_or_else(|i| if i >= search_offsets.len() { 0 } else { i }),
+        SearchDirection::Backward => search_offsets
+            .binary_search(&(current_offset - 1))
+            .unwrap_or_else(|i| if i == 0 { search_offsets.len() - 1 } else { i - 1 }),
+    }
 }
 
 #[cfg(test)]
