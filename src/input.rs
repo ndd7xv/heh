@@ -14,7 +14,11 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent,
 use crate::{
     app::{Action, Application, Nibble},
     label::LABEL_TITLES,
-    windows::{adjust_offset, PopupOutput, Window},
+    windows::{
+        adjust_offset,
+        search::{perform_search, SearchDirection},
+        PopupOutput, Window,
+    },
 };
 
 /// Wrapper function that calls the corresponding [`KeyHandler`](crate::windows::KeyHandler) methods of
@@ -115,7 +119,7 @@ pub(crate) fn handle_character_input(
         match char {
             'q' if is_hex => {
                 if !app.key_handler.is_focusing(Window::UnsavedChanges) {
-                    if app.hash_contents() == app.data.hashed_contents {
+                    if app.data.hash_contents() == app.data.hashed_contents {
                         return Ok(false);
                     }
                     app.set_focused_window(Window::UnsavedChanges);
@@ -138,6 +142,9 @@ pub(crate) fn handle_character_input(
             }
             '$' if is_hex => {
                 app.key_handler.end(&mut app.data, &mut app.display, &mut app.labels);
+            }
+            '/' if is_hex => {
+                app.set_focused_window(Window::Search);
             }
             _ => {
                 app.key_handler.char(&mut app.data, &mut app.display, &mut app.labels, char);
@@ -165,7 +172,7 @@ fn handle_control_options(char: char, app: &mut Application) -> Result<bool, Box
         }
         'q' => {
             if !app.key_handler.is_focusing(Window::UnsavedChanges) {
-                if app.hash_contents() == app.data.hashed_contents {
+                if app.data.hash_contents() == app.data.hashed_contents {
                     return Ok(false);
                 }
                 app.set_focused_window(Window::UnsavedChanges);
@@ -176,7 +183,7 @@ fn handle_control_options(char: char, app: &mut Application) -> Result<bool, Box
             app.data.file.write_all(&app.data.contents)?;
             app.data.file.set_len(app.data.contents.len() as u64)?;
 
-            app.data.hashed_contents = app.hash_contents();
+            app.data.hashed_contents = app.data.hash_contents();
 
             app.labels.notification = String::from("Saved!");
         }
@@ -185,6 +192,28 @@ fn handle_control_options(char: char, app: &mut Application) -> Result<bool, Box
             app.labels.update_all(&app.data.contents[app.data.offset..]);
 
             app.labels.notification = app.labels.endianness.to_string();
+        }
+        'd' => {
+            app.key_handler.page_down(&mut app.data, &mut app.display, &mut app.labels);
+        }
+        'u' => {
+            app.key_handler.page_up(&mut app.data, &mut app.display, &mut app.labels);
+        }
+        'n' => {
+            perform_search(
+                &mut app.data,
+                &mut app.display,
+                &mut app.labels,
+                &SearchDirection::Forward,
+            );
+        }
+        'p' => {
+            perform_search(
+                &mut app.data,
+                &mut app.display,
+                &mut app.labels,
+                &SearchDirection::Backward,
+            );
         }
         'z' => {
             if let Some(action) = app.data.actions.pop() {

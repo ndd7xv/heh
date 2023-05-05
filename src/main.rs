@@ -31,7 +31,7 @@ Do --help for more information.";
 const LONG_ABOUT: &str = "
 The HEx Helper is a terminal tool used for modifying binaries by
 the nibble. It aims to replicate some of the look of hexyl while
-functionaly acting like a terminal UI version of GHex.
+functionally acting like a terminal UI version of GHex.
 
 Note that the octal and hexadecimal labels are slightly
 different in heh; they interpret the stream as if 0s were filled
@@ -46,8 +46,12 @@ Terminal UI Commands:
     CNTRLs              Save
     CNTRLq              Quit
     CNTRLj              Jump to Byte
-    CNTRLf              Search
     CNTRLe              Switch Endianness
+    CNTRLd              Page Down
+    CNTRLu              Page Up
+    CNTRLf or /         Search
+    CNTRLn or Enter     Next Search Match
+    CNTRLp              Prev Search Match
 
 Left-clicking on a label will copy the contents to the clipboard.
 Left-clicking on the ASCII or hex table will focus it.
@@ -109,8 +113,8 @@ impl From<EncodingOption> for Encoding {
 }
 
 fn parse_hex_or_dec(arg: &str) -> Result<usize, String> {
-    if let Some(striped) = arg.strip_prefix("0x") {
-        usize::from_str_radix(striped, 16).map_err(|e| format!("Invalid hexadecimal number: {e}"))
+    if let Some(stripped) = arg.strip_prefix("0x") {
+        usize::from_str_radix(stripped, 16).map_err(|e| format!("Invalid hexadecimal number: {e}"))
     } else {
         arg.parse().map_err(|e| format!("Invalid decimal number: {e}"))
     }
