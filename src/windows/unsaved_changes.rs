@@ -1,7 +1,7 @@
 use tui::{
     layout::Alignment,
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
 };
 
@@ -35,12 +35,12 @@ impl KeyHandler for UnsavedChanges {
     }
     fn widget(&self) -> Paragraph {
         let message = vec![
-            Spans::from(Span::styled(
+            Line::from(Span::styled(
                 "Are you sure you want to quit?",
                 Style::default().fg(Color::White),
             )),
-            Spans::from(Span::from("")),
-            Spans::from(vec![
+            Line::from(Span::from("")),
+            Line::from(vec![
                 Span::styled(
                     "    Yes    ",
                     if self.should_quit {

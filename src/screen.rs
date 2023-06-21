@@ -16,7 +16,7 @@ use tui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style},
-    text::{Span, Spans, Text},
+    text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, Paragraph},
     Terminal,
 };
@@ -185,9 +185,9 @@ impl ScreenHandler {
                 if (row_address..row_address + bytes_per_line).contains(&app_info.offset) {
                     span.style = span.style.fg(Color::Black).bg(Color::White);
                 }
-                Spans::from(span)
+                Line::from(span)
             })
-            .collect::<Vec<Spans>>();
+            .collect::<Vec<Line>>();
 
         let hex_text = generate_hex(app_info, bytes_per_line, lines_per_screen);
         let decoded_text = generate_decoded(app_info, bytes_per_line, lines_per_screen);
@@ -304,7 +304,7 @@ impl ScreenHandler {
 /// NOTE: In UTF-8, a character takes up to 4 bytes and thus the encoding can break at the ends of a
 /// chunk. Increasing the chunk size by 3 bytes at both ends before decoding and cropping them of
 /// afterwards solves the issue for the visible parts.
-fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usize) -> Vec<Spans> {
+fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usize) -> Vec<Line> {
     let initial_offset = app_info.start_address.min(3);
     OverlappingChunks::new(
         &app_info.contents[(app_info.start_address - initial_offset)..],
@@ -383,9 +383,9 @@ fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usi
                 .collect::<Vec<Span>>()
             })
             .collect::<Vec<Span>>();
-        Spans::from(spans)
+        Line::from(spans)
     })
-    .collect::<Vec<Spans>>()
+    .collect::<Vec<Line>>()
 }
 
 /// Display decoded bytes with correct highlighting and colors.
@@ -397,7 +397,7 @@ fn generate_decoded(
     app_info: &AppData,
     bytes_per_line: usize,
     lines_per_screen: usize,
-) -> Vec<Spans> {
+) -> Vec<Line> {
     let initial_offset = app_info.start_address.min(3);
     OverlappingChunks::new(
         &app_info.contents[(app_info.start_address - initial_offset)..],
@@ -407,7 +407,7 @@ fn generate_decoded(
     .take(lines_per_screen)
     .enumerate()
     .map(|(row, chunk)| {
-        Spans::from(
+        Line::from(
             ByteAlignedDecoder::new(chunk, app_info.encoding)
                 .skip(initial_offset)
                 .take(bytes_per_line)
@@ -431,7 +431,7 @@ fn generate_decoded(
                 .collect::<Vec<Span>>(),
         )
     })
-    .collect::<Vec<Spans>>()
+    .collect::<Vec<Line>>()
 }
 
 /// Generates the dimensions of an x by y popup that is centered in Rect r.
