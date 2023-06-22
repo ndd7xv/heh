@@ -76,7 +76,7 @@ jobs:
     strategy:
       matrix:
         platform: [ubuntu-latest, macos-latest, windows-latest]
-        msrv: [1.64.0]
+        msrv: [1.65.0]
     name: ${{ matrix.platform }} / ${{ matrix.msrv }}
     steps:
       - uses: actions/checkout@v3
