@@ -1,6 +1,6 @@
 [package]
 name = "heh"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 description = "A cross-platform terminal UI used for modifying file data in hex or ASCII."
 readme = "README.md"
@@ -12,11 +12,11 @@ rust-version = "1.65.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tui = {package = "ratatui", version = "0.21", default-features = false, features = ["crossterm"]}
-crossterm = "0.26"
-clap = { version = "4.3", features = ["derive"] }
-arboard = { version = "3.2", default-features = false }
-memmap2 = "0.5.10"
+tui = {package = "ratatui", version = "0.22.0", default-features = false, features = ["crossterm"]}
+crossterm = "0.26.1"
+clap = { version = "4.3.19", features = ["derive"] }
+arboard = { version = "3.2.0", default-features = false }
+memmap2 = "0.7.1"
 crossbeam = "0.8.2"
 
 [profile.dev]
