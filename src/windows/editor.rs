@@ -156,6 +156,7 @@ impl KeyHandler for Editor {
             app.offset = app.offset.saturating_sub(1);
             labels.update_all(&app.contents[app.offset..]);
             adjust_offset(app, display, labels);
+            app.dirty = true;
         }
     }
     fn delete(
@@ -168,6 +169,7 @@ impl KeyHandler for Editor {
             app.actions.push(Action::Delete(app.offset, app.contents.remove(app.offset)));
             labels.update_all(&app.contents[app.offset..]);
             adjust_offset(app, display, labels);
+            app.dirty = true;
         }
     }
     fn char(
