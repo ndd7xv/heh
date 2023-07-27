@@ -12,12 +12,12 @@ rust-version = "1.65.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tui = {package = "ratatui", version = "0.22.0", default-features = false, features = ["crossterm"]}
-crossterm = "0.26.1"
-clap = { version = "4.3.19", features = ["derive"] }
 arboard = { version = "3.2.0", default-features = false }
-memmap2 = "0.7.1"
+clap = { version = "4.3.19", default-features = false, features = ["std", "derive", "help"] }
+tui = {package = "ratatui", version = "0.22.0"}
 crossbeam = "0.8.2"
+crossterm = "0.26.1"
+memmap2 = "0.7.1"
 
 [profile.dev]
 opt-level = 1 # Default would excessively lag
