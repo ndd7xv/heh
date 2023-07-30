@@ -6,7 +6,7 @@
 use std::{error::Error, fs::File, process};
 
 use arboard::Clipboard;
-use crossterm::event::{self, Event};
+use crossterm::event::{self, Event, KeyEventKind};
 
 use crate::buffer::AsyncBuffer;
 use crate::decoder::Encoding;
@@ -219,8 +219,10 @@ impl Application {
         let event = event::read()?;
         match event {
             Event::Key(key) => {
-                self.labels.notification.clear();
-                return input::handle_key_input(self, key);
+                if key.kind == KeyEventKind::Press {
+                    self.labels.notification.clear();
+                    return input::handle_key_input(self, key);
+                }
             }
             Event::Mouse(mouse) => {
                 self.labels.notification.clear();
