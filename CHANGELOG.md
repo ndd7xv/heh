@@ -7,6 +7,11 @@ and this project _somewhat_ adheres to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [0.4.1] - 2023-07-31
+
+- Fix windows double input (thanks [@programingjd](https://github.com/programingjd)!)
+- Re-added a saved changed warning when backspacing/deleting bytes
+
 ## [0.4.0] - 2023-07-25
 
 ### Added
