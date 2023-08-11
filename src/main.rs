@@ -60,7 +60,7 @@ Left-clicking on the ASCII or hex table will focus it.
 Zooming in and out will change the size of the components.";
 
 #[derive(Parser)]
-#[command(about = ABOUT, long_about = LONG_ABOUT)]
+#[command(version, about = ABOUT, long_about = LONG_ABOUT)]
 struct Cli {
     #[arg(
         value_enum,

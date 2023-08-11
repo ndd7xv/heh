@@ -7,6 +7,8 @@ and this project _somewhat_ adheres to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+- Fixed a bug where '--version' did not print `heh`'s version (thanks for the report, [@davidak](https://github.com/davidak))
+
 ## [0.4.1] - 2023-07-31
 
 - Fix windows double input (thanks [@programingjd](https://github.com/programingjd)!)
