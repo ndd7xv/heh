@@ -14,7 +14,7 @@ rust-version = "1.65.0"
 [dependencies]
 tui = {package = "ratatui", version = "0.22.0", default-features = false, features = ["crossterm"]}
 crossterm = "0.27.0"
-clap = { version = "4.3.19", features = ["derive"] }
+clap = { version = "4.4.0", features = ["derive"] }
 arboard = { version = "3.2.0", default-features = false }
 memmap2 = "0.7.1"
 crossbeam = "0.8.2"
