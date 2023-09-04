@@ -13,7 +13,7 @@ __heh is currently in alpha - it's not ready to be used in any production manner
 
 # Installation and Usage
 
-heh is currently only available via cargo:
+heh is available via cargo:
 
 ```
 cargo install heh
@@ -55,6 +55,34 @@ OPTIONS:
             Print version information
 
 ```
+
+## Distro packages
+
+<details>
+  <summary>Packaging status</summary>
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/heh.svg)](https://repology.org/project/heh/versions)
+
+</details>
+
+If your distribution has packaged `heh`, you can use that package for the installation.
+
+### Arch Linux
+
+You can use [pacman](https://wiki.archlinux.org/title/Pacman) to install from the [extra repository](https://archlinux.org/packages/extra/x86_64/heh/):
+
+```
+pacman -S heh
+```
+
+### Alpine Linux
+
+`heh` is available for [Alpine Edge](https://pkgs.alpinelinux.org/packages?name=heh&branch=edge). It can be installed via [apk](https://wiki.alpinelinux.org/wiki/Alpine_Package_Keeper) after enabling the [testing repository](https://wiki.alpinelinux.org/wiki/Repositories).
+
+```
+apk add heh
+```
+
 # Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
