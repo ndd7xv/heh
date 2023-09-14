@@ -100,7 +100,7 @@ impl AsyncBuffer {
         let mut internal_start = window_offset.load(Ordering::SeqCst);
 
         std::thread::spawn(move || loop {
-            for rcv in rx.iter() {
+            for rcv in &rx {
                 has_work.store(true, Ordering::SeqCst);
 
                 let start = window_offset.load(Ordering::SeqCst);

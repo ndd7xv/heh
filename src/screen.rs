@@ -121,7 +121,7 @@ impl ScreenHandler {
                 Constraint::Ratio(1, 4),
             ])
             .split(sections[1]);
-        for label in label_columns.iter() {
+        for label in &*label_columns {
             let column_layout = &mut Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
