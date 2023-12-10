@@ -2,8 +2,8 @@
 
 #![allow(clippy::cast_possible_wrap)]
 
-use std::fmt;
 use std::fmt::Formatter;
+use std::fmt::{self, Write};
 use std::ops::Index;
 
 pub(crate) static LABEL_TITLES: [&str; 16] = [
@@ -206,8 +206,10 @@ impl LabelHandler {
     fn update_binary(&mut self, bytes: &[u8]) {
         self.binary = bytes
             .iter()
-            .map(|byte| format!("{byte:08b}"))
-            .collect::<String>()
+            .fold(String::new(), |mut binary, byte| {
+                let _ = write!(&mut binary, "{byte:08b}");
+                binary
+            })
             .chars()
             .take(self.stream_length)
             .collect();
@@ -231,4 +233,25 @@ fn fill_slice(bytes: &[u8], len: usize) -> Vec<u8> {
         return fill;
     }
     bytes[0..len].to_vec()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_binary_label() {
+        // Given a label handler with the content 'hello' and offset of 0
+        let content = "hello".as_bytes();
+        let mut label_handler = LabelHandler::new(content, 0);
+        // The binary label should contain the binary veresion of the first character
+        assert!(label_handler.binary.eq("01101000"));
+
+        // When the stream_length is changed to include 8 more binary digits,
+        label_handler.stream_length = 16;
+        label_handler.update_binary(content);
+
+        // The second character should also be represented
+        assert!(label_handler.binary.eq("0110100001100101"));
+    }
 }
