@@ -2,8 +2,8 @@
 
 #![allow(clippy::cast_possible_wrap)]
 
-use std::fmt;
 use std::fmt::Formatter;
+use std::fmt::{self, Write};
 use std::ops::Index;
 
 pub(crate) static LABEL_TITLES: [&str; 16] = [
@@ -206,8 +206,10 @@ impl LabelHandler {
     fn update_binary(&mut self, bytes: &[u8]) {
         self.binary = bytes
             .iter()
-            .map(|byte| format!("{byte:08b}"))
-            .collect::<String>()
+            .fold(String::new(), |mut binary, byte| {
+                let _ = write!(&mut binary, "{byte:08b}");
+                binary
+            })
             .chars()
             .take(self.stream_length)
             .collect();
