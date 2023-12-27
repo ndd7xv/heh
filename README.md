@@ -5,9 +5,11 @@
 [![Dependency status](https://deps.rs/repo/github/ndd7xv/heh/status.svg)](https://deps.rs/repo/github/ndd7xv/heh)
 <!--- [![Documentation](https://docs.rs/heh/badge.svg)](https://docs.rs/heh/) If https://github.com/rust-lang/docs.rs/issues/238#issuecomment-631333050 is ever closed?-->
 
-The HEx Helper is a cross-platform terminal UI used for modifying file data in hex or ASCII. It aims to replicate some of the look of hexyl while functionally acting like a terminal UI version of GHex.
+The HEx Helper is a cross-platform terminal [hex editor](https://en.wikipedia.org/wiki/Hex_editor) used for modifying file data in hex or ASCII. It aims to replicate some of the look of hexyl while functionally acting like a terminal UI version of GHex.
 
-__heh is currently in alpha - it's not ready to be used in any production manner. Notably, it does not store backups if killed or crashing and there is no undo option after deleting a byte.__
+| :information_source: NOTE          |
+|:---------------------------|
+| heh is currently in alpha - it's not ready to be used in any production manner. It lacks a variety of quality of life features and does not store backups if killed or crashing. |
 
 ![screenshot of heh](demo.png)
 
