@@ -2,8 +2,8 @@
 //! It aims to replicate some of the look of [hexyl](https://github.com/sharkdp/hexyl) while
 //! functionaly acting like a terminal UI version of [GHex](https://wiki.gnome.org/Apps/Ghex).
 //!
-//! **heh is currently in alpha** - it's not ready to be used in any production manner. Notably, it
-//! does not store backups if killed or crashing and there is no undo option after deleting a byte.
+//! **heh is currently in alpha** - it's not ready to be used in any production manner. It lacks a
+//! variety of quality of life features and does not store backups if killed or crashing.
 
 use std::{error::Error, fs::OpenOptions, io, process};
 

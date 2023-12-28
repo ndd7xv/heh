@@ -167,7 +167,7 @@ impl ScreenHandler {
     }
 
     /// Generates all the visuals of the file contents to be displayed to user by calling
-    /// [`generate_hex`](generate_hex) and [`generate_decoded`](generate_decoded).
+    /// [`generate_hex`] and [`generate_decoded`].
     fn generate_text(
         app_info: &mut AppData,
         bytes_per_line: usize,

@@ -72,11 +72,13 @@ pub(crate) trait KeyHandler {
 }
 
 /// Moves the starting address of the editor viewports (Hex and ASCII) to include the cursor.
+/// This is helpful because some window actions (search, jump to byte) move the cursor, and we
+/// want to move the screen along with it.
 ///
 /// If the cursor's location is before the viewports start, the viewports will move so that the
 /// cursor is included in the first row.
 ///
-/// If the cursor's location is past the end of the viewports, the vierports will move so that
+/// If the cursor's location is past the end of the viewports, the viewports will move so that
 /// the cursor is included in the final row.
 pub(crate) fn adjust_offset(
     app: &mut AppData,
