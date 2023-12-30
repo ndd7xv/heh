@@ -7,9 +7,8 @@
 
 The HEx Helper is a cross-platform terminal [hex editor](https://en.wikipedia.org/wiki/Hex_editor) used for modifying file data in hex or ASCII. It aims to replicate some of the look of hexyl while functionally acting like a terminal UI version of GHex.
 
-| :information_source: NOTE          |
-|:---------------------------|
-| heh is currently in alpha - it's not ready to be used in any production manner. It lacks a variety of quality of life features and does not store backups if killed or crashing. |
+> [!WARNING]
+> heh is currently in alpha - it's not ready to be used in any production manner. It lacks a variety of quality of life features and does not store backups if killed or crashing.
 
 ![screenshot of heh](demo.png)
 
