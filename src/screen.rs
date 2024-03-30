@@ -18,7 +18,7 @@ use tui::{
     style::{Color, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, Paragraph},
-    Terminal,
+    Frame, Terminal,
 };
 
 use crate::chunk::OverlappingChunks;
@@ -206,11 +206,11 @@ impl ScreenHandler {
     ) -> Result<(), Box<dyn Error>> {
         app_info.contents.compute_new_window(app_info.offset);
 
-        self.terminal.draw(|f| {
+        self.terminal.draw(|frame| {
             // We check if we need to recompute the terminal size in the case that the saved off
             // variable differs from the current frame, which can occur when a terminal is resized
             // between an event handling and a rendering.
-            let size = f.size();
+            let size = frame.size();
             if size != self.terminal_size {
                 self.terminal_size = size;
                 self.comp_layouts = Self::calculate_dimensions(self.terminal_size, window);
@@ -223,80 +223,101 @@ impl ScreenHandler {
                     * self.comp_layouts.bytes_per_line;
             }
 
-            // Check if terminal is large enough
-            if self.terminal_size.width < 50 || self.terminal_size.height < 15 {
-                let dimension_notification = Paragraph::new("Terminal dimensions must be larger!")
-                    .block(Block::default())
-                    .alignment(Alignment::Center);
-                let vertical_center = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Percentage(40),
-                        Constraint::Percentage(20),
-                        Constraint::Percentage(40),
-                    ])
-                    .split(self.terminal_size);
-                f.render_widget(dimension_notification, vertical_center[1]);
-                return;
-            }
-
-            let (address_text, hex_text, ascii_text) = Self::generate_text(
+            Self::render_frame(
+                frame,
+                self.terminal_size,
                 app_info,
-                self.comp_layouts.bytes_per_line,
-                self.comp_layouts.lines_per_screen,
+                labels,
+                window,
+                &self.comp_layouts,
             );
-
-            // Render Line Numbers
-            f.render_widget(
-                Paragraph::new(address_text)
-                    .block(Block::default().borders(Borders::ALL).title("Address")),
-                self.comp_layouts.line_numbers,
-            );
-
-            // Render Hex
-            f.render_widget(
-                Paragraph::new(hex_text).block(
-                    Block::default().borders(Borders::ALL).title("Hex").style(
-                        if window.is_focusing(Window::Hex) {
-                            Style::default().fg(Color::Yellow)
-                        } else {
-                            Style::default()
-                        },
-                    ),
-                ),
-                self.comp_layouts.hex,
-            );
-
-            // Render ASCII
-            f.render_widget(
-                Paragraph::new(ascii_text).block(
-                    Block::default().borders(Borders::ALL).title("ASCII").style(
-                        if window.is_focusing(Window::Ascii) {
-                            Style::default().fg(Color::Yellow)
-                        } else {
-                            Style::default()
-                        },
-                    ),
-                ),
-                self.comp_layouts.ascii,
-            );
-
-            // Render Info
-            for (i, label) in self.comp_layouts.labels.iter().enumerate() {
-                f.render_widget(
-                    Paragraph::new(labels[LABEL_TITLES[i]].clone())
-                        .block(Block::default().borders(Borders::ALL).title(LABEL_TITLES[i])),
-                    *label,
-                );
-            }
-
-            // Render Popup
-            if !window.is_focusing(Window::Hex) && !window.is_focusing(Window::Ascii) {
-                f.render_widget(Clear, self.comp_layouts.popup);
-                f.render_widget(window.widget(), self.comp_layouts.popup);
-            }
         })?;
         Ok(())
+    }
+
+    /// Display the addresses, editors, labels, and popups based off of the specifications of
+    /// [`ComponentLayouts`], defined by
+    /// [`calculate_dimensions`](Self::calculate_dimensions).
+    pub(crate) fn render_frame(
+        frame: &mut Frame,
+        area: Rect,
+        app_info: &mut AppData,
+        labels: &LabelHandler,
+        window: &dyn KeyHandler,
+        comp_layouts: &ComponentLayouts,
+    ) {
+        // Check if terminal is large enough
+        if area.width < 50 || area.height < 15 {
+            let dimension_notification = Paragraph::new("Terminal dimensions must be larger!")
+                .block(Block::default())
+                .alignment(Alignment::Center);
+            let vertical_center = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Percentage(40),
+                    Constraint::Percentage(20),
+                    Constraint::Percentage(40),
+                ])
+                .split(area);
+            frame.render_widget(dimension_notification, vertical_center[1]);
+            return;
+        }
+
+        let (address_text, hex_text, ascii_text) = Self::generate_text(
+            app_info,
+            comp_layouts.bytes_per_line,
+            comp_layouts.lines_per_screen,
+        );
+
+        // Render Line Numbers
+        frame.render_widget(
+            Paragraph::new(address_text)
+                .block(Block::default().borders(Borders::ALL).title("Address")),
+            comp_layouts.line_numbers,
+        );
+
+        // Render Hex
+        frame.render_widget(
+            Paragraph::new(hex_text).block(
+                Block::default().borders(Borders::ALL).title("Hex").style(
+                    if window.is_focusing(Window::Hex) {
+                        Style::default().fg(Color::Yellow)
+                    } else {
+                        Style::default()
+                    },
+                ),
+            ),
+            comp_layouts.hex,
+        );
+
+        // Render ASCII
+        frame.render_widget(
+            Paragraph::new(ascii_text).block(
+                Block::default().borders(Borders::ALL).title("ASCII").style(
+                    if window.is_focusing(Window::Ascii) {
+                        Style::default().fg(Color::Yellow)
+                    } else {
+                        Style::default()
+                    },
+                ),
+            ),
+            comp_layouts.ascii,
+        );
+
+        // Render Info
+        for (i, label) in comp_layouts.labels.iter().enumerate() {
+            frame.render_widget(
+                Paragraph::new(labels[LABEL_TITLES[i]].clone())
+                    .block(Block::default().borders(Borders::ALL).title(LABEL_TITLES[i])),
+                *label,
+            );
+        }
+
+        // Render Popup
+        if !window.is_focusing(Window::Hex) && !window.is_focusing(Window::Ascii) {
+            frame.render_widget(Clear, comp_layouts.popup);
+            frame.render_widget(window.widget(), comp_layouts.popup);
+        }
     }
 }
 

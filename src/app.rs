@@ -7,6 +7,8 @@ use std::{error::Error, fs::File, process};
 
 use arboard::Clipboard;
 use crossterm::event::{self, Event, KeyEventKind};
+use tui::layout::Rect;
+use tui::Frame;
 
 use crate::buffer::AsyncBuffer;
 use crate::decoder::Encoding;
@@ -205,8 +207,34 @@ impl Application {
     /// Renders the display. This is a wrapper around [`ScreenHandler`'s
     /// render](ScreenHandler::render) method.
     fn render_display(&mut self) -> Result<(), Box<dyn Error>> {
-        self.display.render(&mut self.data, &self.labels, self.key_handler.as_ref())?;
-        Ok(())
+        self.display.render(&mut self.data, &self.labels, self.key_handler.as_ref())
+    }
+
+    /// Renders a single frame for the given area.
+    pub fn render_frame(&mut self, frame: &mut Frame, area: Rect) {
+        self.data.contents.compute_new_window(self.data.offset);
+        // We check if we need to recompute the terminal size in the case that the saved off
+        // variable differs from the current frame, which can occur when a terminal is resized
+        // between an event handling and a rendering.
+        if area != self.display.terminal_size {
+            self.display.terminal_size = area;
+            self.display.comp_layouts =
+                ScreenHandler::calculate_dimensions(area, self.key_handler.as_ref());
+            // We change the start_address here to ensure that 0 is ALWAYS the first start
+            // address. We round to preventing constant resizing always moving to 0.
+            self.data.start_address = (self.data.start_address
+                + (self.display.comp_layouts.bytes_per_line / 2))
+                / self.display.comp_layouts.bytes_per_line
+                * self.display.comp_layouts.bytes_per_line;
+        }
+        ScreenHandler::render_frame(
+            frame,
+            self.display.terminal_size,
+            &mut self.data,
+            &self.labels,
+            self.key_handler.as_ref(),
+            &self.display.comp_layouts,
+        );
     }
 
     /// Handles all forms of user input. This calls out to code in [input], which uses
