@@ -84,6 +84,43 @@ pacman -S heh
 apk add heh
 ```
 
+## Using as a Ratatui widget
+
+`heh` can be used a library and embedded into other TUI applications which use [Ratatui](https://ratatui.rs) and [crossterm](https://github.com/crossterm-rs/crossterm).
+
+Add `heh` to your dependencies in `Cargo.toml`:
+
+```toml
+[dependencies]
+ratatui = "0.24"
+crossterm = "0.27"
+heh = "0.4"
+```
+
+Create the application:
+
+```rust
+use heh::app::Application as Heh;
+use heh::decoder::Encoding;
+
+let file = std::fs::OpenOptions::new().read(true).write(true).open(path).unwrap();
+let heh = Heh::new(file, Encoding::Ascii, 0).unwrap();
+```
+
+Then you can render a frame as follows:
+
+```rust
+terminal.draw(|frame| {
+    heh.render_frame(frame, frame.size());
+});
+```
+
+To handle key events:
+
+```rust
+heh.handle_input(crossterm::event::Event::Key(/* */)).unwrap();
+```
+
 # Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
