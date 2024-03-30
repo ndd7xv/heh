@@ -53,9 +53,9 @@ pub(crate) enum Action {
 }
 
 /// State Information needed by the [`ScreenHandler`] and [`KeyHandler`].
-pub(crate) struct AppData {
+pub struct AppData {
     /// The file under editing.
-    pub(crate) file: File,
+    pub file: File,
 
     /// The file content.
     pub(crate) contents: AsyncBuffer,
@@ -117,16 +117,16 @@ impl AppData {
 
 /// Application provides the user interaction interface and renders the terminal screen in response
 /// to user actions.
-pub(crate) struct Application {
+pub struct Application {
     /// The application's state and data.
-    pub(crate) data: AppData,
+    pub data: AppData,
 
     /// Renders and displays objects to the terminal.
     pub(crate) display: ScreenHandler,
 
     /// The labels at the bottom of the UI that provide information
     /// based on the current offset.
-    pub(crate) labels: LabelHandler,
+    pub labels: LabelHandler,
 
     /// The window that handles keyboard input. This is usually in the form of the Hex/ASCII editor
     /// or popups.
@@ -138,11 +138,7 @@ impl Application {
     /// default. This is called once at the beginning of the program.
     ///
     /// This errors out if the file specified is empty.
-    pub(crate) fn new(
-        file: File,
-        encoding: Encoding,
-        offset: usize,
-    ) -> Result<Self, Box<dyn Error>> {
+    pub fn new(file: File, encoding: Encoding, offset: usize) -> Result<Self, Box<dyn Error>> {
         let contents = AsyncBuffer::new(&file)?;
         if contents.is_empty() {
             eprintln!("heh does not support editing empty files");
@@ -193,11 +189,12 @@ impl Application {
 
     /// A loop that repeatedly renders the terminal and modifies state based on input. Is stopped
     /// when input handling receives CNTRLq, the command to stop.
-    pub(crate) fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
         ScreenHandler::setup()?;
         loop {
             self.render_display()?;
-            if !self.handle_input()? {
+            let event = event::read()?;
+            if !self.handle_input(event)? {
                 break;
             }
         }
@@ -215,8 +212,7 @@ impl Application {
     /// Handles all forms of user input. This calls out to code in [input], which uses
     /// [Application's `key_handler` method](Application::key_handler) to determine what to do for
     /// key input.
-    fn handle_input(&mut self) -> Result<bool, Box<dyn Error>> {
-        let event = event::read()?;
+    pub fn handle_input(&mut self, event: Event) -> Result<bool, Box<dyn Error>> {
         match event {
             Event::Key(key) => {
                 if key.kind == KeyEventKind::Press {

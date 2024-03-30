@@ -31,13 +31,13 @@ use crate::{
 
 const COLOR_NULL: Color = Color::DarkGray;
 
-pub(crate) struct ScreenHandler {
-    terminal: Terminal<CrosstermBackend<Stdout>>,
-    pub(crate) terminal_size: Rect,
-    pub(crate) comp_layouts: ComponentLayouts,
+pub struct ScreenHandler {
+    pub terminal: Terminal<CrosstermBackend<Stdout>>,
+    pub terminal_size: Rect,
+    pub comp_layouts: ComponentLayouts,
 }
 
-pub(crate) struct ComponentLayouts {
+pub struct ComponentLayouts {
     line_numbers: Rect,
     pub(crate) hex: Rect,
     pub(crate) ascii: Rect,
@@ -48,7 +48,7 @@ pub(crate) struct ComponentLayouts {
 }
 
 impl ScreenHandler {
-    pub(crate) fn new() -> Result<Self, Box<dyn Error>> {
+    pub fn new() -> Result<Self, Box<dyn Error>> {
         let terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
         let terminal_size = terminal.size()?;
         Ok(Self {
@@ -94,7 +94,7 @@ impl ScreenHandler {
     /// Calculates the dimensions of the components that will be continually displayed.
     ///
     /// This includes the editors, labels, and address table.
-    fn calculate_dimensions(frame: Rect, window: &dyn KeyHandler) -> ComponentLayouts {
+    pub fn calculate_dimensions(frame: Rect, window: &dyn KeyHandler) -> ComponentLayouts {
         // Establish Constraints
         let sections = Layout::default()
             .direction(Direction::Vertical)

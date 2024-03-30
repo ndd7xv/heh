@@ -80,7 +80,7 @@ impl<'a> Iterator for LossyUTF8Decoder<'a> {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) enum Encoding {
+pub enum Encoding {
     Ascii,
     Utf8,
 }

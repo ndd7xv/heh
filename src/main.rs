@@ -10,19 +10,8 @@ use std::{error::Error, fs::OpenOptions, io, process};
 use clap::{Parser, ValueEnum};
 use crossterm::tty::IsTty;
 
-use app::Application;
-
-use crate::decoder::Encoding;
-
-mod app;
-mod buffer;
-mod character;
-mod chunk;
-mod decoder;
-mod input;
-mod label;
-mod screen;
-mod windows;
+use heh::app::Application;
+use heh::decoder::Encoding;
 
 const ABOUT: &str = "
 A HEx Helper to edit bytes by the nibble.

@@ -14,7 +14,7 @@ use crate::{app::AppData, label::LabelHandler, screen::ScreenHandler};
 /// component has been most recently clicked, and is also used to detmine which window is
 /// focused in the `Application`'s input field.
 #[derive(PartialEq, Eq, Copy, Clone)]
-pub(crate) enum Window {
+pub enum Window {
     Ascii,
     Hex,
     JumpToByte,
@@ -26,7 +26,7 @@ pub(crate) enum Window {
 
 /// Represents the possible output of a variety of different popups.
 #[derive(PartialEq, Eq)]
-pub(crate) enum PopupOutput<'a> {
+pub enum PopupOutput<'a> {
     Str(&'a str),
     Boolean(bool),
     NoOutput,
@@ -37,7 +37,7 @@ pub(crate) enum PopupOutput<'a> {
 /// Depending on what is currently focused, user input can be handled in different ways. For
 /// example, pressing enter should not modify the opened file in any form, but doing so while the
 /// "Jump To Byte" popup is focused should attempt to move the cursor to the inputted byte.
-pub(crate) trait KeyHandler {
+pub trait KeyHandler {
     /// Checks if the current [`KeyHandler`] is a certain [`Window`].
     fn is_focusing(&self, window_type: Window) -> bool;
 

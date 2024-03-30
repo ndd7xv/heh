@@ -42,7 +42,7 @@ impl fmt::Display for Endianness {
 }
 
 #[derive(Default)]
-pub(crate) struct LabelHandler {
+pub struct LabelHandler {
     signed_eight: String,
     signed_sixteen: String,
     signed_thirtytwo: String,
@@ -59,7 +59,7 @@ pub(crate) struct LabelHandler {
     stream_length: usize,
     stream_length_string: String,
     pub(crate) offset: String,
-    pub(crate) notification: String,
+    pub notification: String,
     pub(crate) endianness: Endianness,
 }
 
