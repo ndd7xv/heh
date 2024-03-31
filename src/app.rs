@@ -7,8 +7,8 @@ use std::{error::Error, fs::File, process};
 
 use arboard::Clipboard;
 use crossterm::event::{self, Event, KeyEventKind};
-use tui::layout::Rect;
-use tui::Frame;
+use ratatui::layout::Rect;
+use ratatui::Frame;
 
 use crate::buffer::AsyncBuffer;
 use crate::decoder::Encoding;

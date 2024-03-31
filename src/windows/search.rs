@@ -1,4 +1,4 @@
-use tui::{
+use ratatui::{
     style::{Color, Style},
     text::Span,
     widgets::{Block, Borders, Paragraph},
@@ -144,7 +144,7 @@ pub(crate) fn perform_search(
 // the current offset would fit, and from that we either pick the index to the left or right
 // depending on whether we're searching forwards or backwards from the current offset.
 fn get_next_match_index(
-    search_offsets: &Vec<usize>,
+    search_offsets: &[usize],
     current_offset: usize,
     search_direction: &SearchDirection,
 ) -> usize {
@@ -175,7 +175,7 @@ mod tests {
     #[test]
     fn test_search() {
         fn search(
-            search_offsets: &Vec<usize>,
+            search_offsets: &[usize],
             current_offset: usize,
             search_direction: &SearchDirection,
         ) -> usize {

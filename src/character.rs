@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display, Formatter};
 
-use tui::style::Color;
+use ratatui::style::Color;
 
 pub(crate) const CHARACTER_NULL: char = '0';
 pub(crate) const CHARACTER_WHITESPACE: char = '_';
