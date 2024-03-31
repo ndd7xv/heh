@@ -12,7 +12,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use tui::{
+use ratatui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style},
@@ -107,8 +107,8 @@ impl ScreenHandler {
                 // The address table is Length(10) as specified above. Because the hex editor takes
                 // 3 graphemes for every 1 that ASCII takes (each nibble plus a space), we multiply
                 // the editors by those ratios.
-                Constraint::Length((frame.width - 10) * 3 / 4 - 1),
-                Constraint::Length((frame.width - 10) / 4),
+                Constraint::Length((frame.width - 10) * 3 / 4),
+                Constraint::Length((frame.width - 10) / 4 + 1),
             ])
             .split(sections[0]);
         let mut labels = Rc::new(Vec::with_capacity(12));
@@ -488,11 +488,11 @@ mod tests {
         assert_eq!(layout.line_numbers.width, 10);
         // The Hex editor takes up 3/4ths of the remaining horizontal space (rounded down as to not
         // overflow)...
-        assert_eq!(layout.hex.width, (width - 10) * 3 / 4 - 1);
+        assert_eq!(layout.hex.width, (width - 10) * 3 / 4);
         // And the ASCII editor takes up the remaining 1/4th. In some instances, the dimensions
         // are larger than the layout, so instead of asserting (width - 10) / 4 we assert the
         // remaining space.
-        assert_eq!(layout.ascii.width, width - (10 + ((width - 10) * 3 / 4 - 1)));
+        assert_eq!(layout.ascii.width, width - (10 + ((width - 10) * 3 / 4)));
 
         // The remaining space should consist of the labels in a 4 by 4 grid. Since the height
         // of each label column is hard set to 12, 4 labels in a column should have a width of 3.
