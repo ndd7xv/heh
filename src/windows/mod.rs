@@ -6,7 +6,7 @@ pub(crate) mod jump_to_byte;
 pub(crate) mod search;
 pub(crate) mod unsaved_changes;
 
-use tui::widgets::Paragraph;
+use ratatui::widgets::Paragraph;
 
 use crate::{app::AppData, label::LabelHandler, screen::ScreenHandler};
 
