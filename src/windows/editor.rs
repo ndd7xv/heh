@@ -1,9 +1,9 @@
 use std::cmp;
 
 use crate::{
-    app::{Action, AppData, Nibble},
-    label::LabelHandler,
-    screen::ScreenHandler,
+    app::{Action, Data, Nibble},
+    label::Handler as LabelHandler,
+    screen::Handler as ScreenHandler,
 };
 
 use super::{
@@ -26,7 +26,7 @@ impl KeyHandler for Editor {
             Self::Hex => window_type == Window::Hex,
         }
     }
-    fn left(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
+    fn left(&mut self, app: &mut Data, display: &mut ScreenHandler, labels: &mut LabelHandler) {
         app.last_drag = None;
         app.drag_nibble = None;
         match self {
@@ -45,7 +45,7 @@ impl KeyHandler for Editor {
             }
         }
     }
-    fn right(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
+    fn right(&mut self, app: &mut Data, display: &mut ScreenHandler, labels: &mut LabelHandler) {
         app.last_drag = None;
         app.drag_nibble = None;
         match self {
@@ -64,7 +64,7 @@ impl KeyHandler for Editor {
             }
         }
     }
-    fn up(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
+    fn up(&mut self, app: &mut Data, display: &mut ScreenHandler, labels: &mut LabelHandler) {
         app.last_drag = None;
         app.drag_nibble = None;
         if let Some(new_offset) = app.offset.checked_sub(display.comp_layouts.bytes_per_line) {
@@ -73,7 +73,7 @@ impl KeyHandler for Editor {
             adjust_offset(app, display, labels);
         }
     }
-    fn down(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
+    fn down(&mut self, app: &mut Data, display: &mut ScreenHandler, labels: &mut LabelHandler) {
         app.last_drag = None;
         app.drag_nibble = None;
         if let Some(new_offset) = app.offset.checked_add(display.comp_layouts.bytes_per_line) {
@@ -84,7 +84,7 @@ impl KeyHandler for Editor {
             }
         }
     }
-    fn home(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
+    fn home(&mut self, app: &mut Data, display: &mut ScreenHandler, labels: &mut LabelHandler) {
         app.last_drag = None;
         app.drag_nibble = None;
         let bytes_per_line = display.comp_layouts.bytes_per_line;
@@ -96,7 +96,7 @@ impl KeyHandler for Editor {
             app.nibble = Nibble::Beginning;
         }
     }
-    fn end(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
+    fn end(&mut self, app: &mut Data, display: &mut ScreenHandler, labels: &mut LabelHandler) {
         app.last_drag = None;
         app.drag_nibble = None;
         let bytes_per_line = display.comp_layouts.bytes_per_line;
@@ -111,12 +111,7 @@ impl KeyHandler for Editor {
             app.nibble = Nibble::End;
         }
     }
-    fn page_up(
-        &mut self,
-        app: &mut AppData,
-        display: &mut ScreenHandler,
-        labels: &mut LabelHandler,
-    ) {
+    fn page_up(&mut self, app: &mut Data, display: &mut ScreenHandler, labels: &mut LabelHandler) {
         app.last_drag = None;
         app.drag_nibble = None;
         app.offset = app.offset.saturating_sub(
@@ -127,7 +122,7 @@ impl KeyHandler for Editor {
     }
     fn page_down(
         &mut self,
-        app: &mut AppData,
+        app: &mut Data,
         display: &mut ScreenHandler,
         labels: &mut LabelHandler,
     ) {
@@ -144,7 +139,7 @@ impl KeyHandler for Editor {
     }
     fn backspace(
         &mut self,
-        app: &mut AppData,
+        app: &mut Data,
         display: &mut ScreenHandler,
         labels: &mut LabelHandler,
     ) {
@@ -159,12 +154,7 @@ impl KeyHandler for Editor {
             app.dirty = true;
         }
     }
-    fn delete(
-        &mut self,
-        app: &mut AppData,
-        display: &mut ScreenHandler,
-        labels: &mut LabelHandler,
-    ) {
+    fn delete(&mut self, app: &mut Data, display: &mut ScreenHandler, labels: &mut LabelHandler) {
         if app.contents.len() > 1 {
             app.actions.push(Action::Delete(app.offset, app.contents.remove(app.offset)));
             labels.update_all(&app.contents[app.offset..]);
@@ -174,7 +164,7 @@ impl KeyHandler for Editor {
     }
     fn char(
         &mut self,
-        app: &mut AppData,
+        app: &mut Data,
         display: &mut ScreenHandler,
         labels: &mut LabelHandler,
         c: char,
@@ -236,12 +226,7 @@ impl KeyHandler for Editor {
         }
     }
 
-    fn enter(
-        &mut self,
-        data: &mut AppData,
-        display: &mut ScreenHandler,
-        labels: &mut LabelHandler,
-    ) {
+    fn enter(&mut self, data: &mut Data, display: &mut ScreenHandler, labels: &mut LabelHandler) {
         perform_search(data, display, labels, &SearchDirection::Forward);
     }
 }

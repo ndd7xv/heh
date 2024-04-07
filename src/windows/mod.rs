@@ -8,7 +8,7 @@ pub(crate) mod unsaved_changes;
 
 use ratatui::widgets::Paragraph;
 
-use crate::{app::AppData, label::LabelHandler, screen::ScreenHandler};
+use crate::{app::Data, label::Handler as LabelHandler, screen::Handler as ScreenHandler};
 
 /// An enumeration of all the potential components that can be clicked. Used to identify which
 /// component has been most recently clicked, and is also used to detmine which window is
@@ -42,18 +42,18 @@ pub trait KeyHandler {
     fn is_focusing(&self, window_type: Window) -> bool;
 
     // Methods that handle their respective keypresses.
-    fn left(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn right(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn up(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn down(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn home(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn end(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn page_up(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn page_down(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn backspace(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn delete(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn enter(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {}
-    fn char(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler, _: char) {}
+    fn left(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {}
+    fn right(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {}
+    fn up(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {}
+    fn down(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {}
+    fn home(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {}
+    fn end(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {}
+    fn page_up(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {}
+    fn page_down(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {}
+    fn backspace(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {}
+    fn delete(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {}
+    fn enter(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {}
+    fn char(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler, _: char) {}
 
     /// Returns user input. Is currently used to get information from popups.
     fn get_user_input(&self) -> PopupOutput {
@@ -81,7 +81,7 @@ pub trait KeyHandler {
 /// If the cursor's location is past the end of the viewports, the viewports will move so that
 /// the cursor is included in the final row.
 pub(crate) fn adjust_offset(
-    app: &mut AppData,
+    app: &mut Data,
     display: &mut ScreenHandler,
     labels: &mut LabelHandler,
 ) {

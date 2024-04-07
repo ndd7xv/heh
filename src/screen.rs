@@ -23,15 +23,15 @@ use ratatui::{
 
 use crate::chunk::OverlappingChunks;
 use crate::{
-    app::{AppData, Nibble},
+    app::{Data, Nibble},
     decoder::ByteAlignedDecoder,
-    label::{LabelHandler, LABEL_TITLES},
+    label::{Handler as LabelHandler, LABEL_TITLES},
     windows::{editor::Editor, KeyHandler, Window},
 };
 
 const COLOR_NULL: Color = Color::DarkGray;
 
-pub struct ScreenHandler {
+pub struct Handler {
     pub terminal: Terminal<CrosstermBackend<Stdout>>,
     pub terminal_size: Rect,
     pub comp_layouts: ComponentLayouts,
@@ -47,7 +47,12 @@ pub struct ComponentLayouts {
     pub(crate) lines_per_screen: usize,
 }
 
-impl ScreenHandler {
+impl Handler {
+    /// Creates a new screen handler.
+    ///
+    /// # Errors
+    ///
+    /// This errors when constructing the terminal or retrieving the terminal size fails.
     pub fn new() -> Result<Self, Box<dyn Error>> {
         let terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
         let terminal_size = terminal.size()?;
@@ -169,7 +174,7 @@ impl ScreenHandler {
     /// Generates all the visuals of the file contents to be displayed to user by calling
     /// [`generate_hex`] and [`generate_decoded`].
     fn generate_text(
-        app_info: &mut AppData,
+        app_info: &mut Data,
         bytes_per_line: usize,
         lines_per_screen: usize,
     ) -> (Text, Text, Text) {
@@ -200,7 +205,7 @@ impl ScreenHandler {
     /// [`calculate_dimensions`](Self::calculate_dimensions).
     pub(crate) fn render(
         &mut self,
-        app_info: &mut AppData,
+        app_info: &mut Data,
         labels: &LabelHandler,
         window: &dyn KeyHandler,
     ) -> Result<(), Box<dyn Error>> {
@@ -241,7 +246,7 @@ impl ScreenHandler {
     pub(crate) fn render_frame(
         frame: &mut Frame,
         area: Rect,
-        app_info: &mut AppData,
+        app_info: &mut Data,
         labels: &LabelHandler,
         window: &dyn KeyHandler,
         comp_layouts: &ComponentLayouts,
@@ -327,7 +332,7 @@ impl ScreenHandler {
 /// NOTE: In UTF-8, a character takes up to 4 bytes and thus the encoding can break at the ends of a
 /// chunk. Increasing the chunk size by 3 bytes at both ends before decoding and cropping them of
 /// afterwards solves the issue for the visible parts.
-fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usize) -> Vec<Line> {
+fn generate_hex(app_info: &Data, bytes_per_line: usize, lines_per_screen: usize) -> Vec<Line> {
     let initial_offset = app_info.start_address.min(3);
     OverlappingChunks::new(
         &app_info.contents[(app_info.start_address - initial_offset)..],
@@ -416,11 +421,7 @@ fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usi
 /// NOTE: In UTF-8, a character takes up to 4 bytes and thus the encoding can break at the ends of a
 /// chunk. Increasing the chunk size by 3 bytes at both ends before decoding and cropping them of
 /// afterwards solves the issue for the visible parts.
-fn generate_decoded(
-    app_info: &AppData,
-    bytes_per_line: usize,
-    lines_per_screen: usize,
-) -> Vec<Line> {
+fn generate_decoded(app_info: &Data, bytes_per_line: usize, lines_per_screen: usize) -> Vec<Line> {
     let initial_offset = app_info.start_address.min(3);
     OverlappingChunks::new(
         &app_info.contents[(app_info.start_address - initial_offset)..],
@@ -495,8 +496,7 @@ mod tests {
 
         // Given a terminal size of 100 x 100, when dimensions are calculated
         let key_handler: Box<dyn KeyHandler> = Box::from(Editor::Ascii);
-        let layout =
-            ScreenHandler::calculate_dimensions(Rect::new(0, 0, width, height), &*key_handler);
+        let layout = Handler::calculate_dimensions(Rect::new(0, 0, width, height), &*key_handler);
 
         // The "editors" section, which consists of the line number column, Hex input box, and
         // ASCII input box should have a size of height - 12 (there are 4 labels per column and

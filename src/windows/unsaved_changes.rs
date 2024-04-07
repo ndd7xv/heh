@@ -5,7 +5,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::{app::AppData, label::LabelHandler, screen::ScreenHandler};
+use crate::{app::Data, label::Handler as LabelHandler, screen::Handler as ScreenHandler};
 
 use super::{KeyHandler, PopupOutput, Window};
 
@@ -17,12 +17,12 @@ impl KeyHandler for UnsavedChanges {
     fn is_focusing(&self, window_type: Window) -> bool {
         window_type == Window::UnsavedChanges
     }
-    fn left(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {
+    fn left(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {
         if !self.should_quit {
             self.should_quit = true;
         }
     }
-    fn right(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {
+    fn right(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {
         if self.should_quit {
             self.should_quit = false;
         }

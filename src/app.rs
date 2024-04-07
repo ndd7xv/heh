@@ -2,6 +2,9 @@
 //!
 //! The application holds the main components of the other modules, like the [`ScreenHandler`],
 //! [`LabelHandler`], and input handling, as well as the state data that each of them need.
+//!
+//! [`ScreenHandler`]: crate::screen::Handler
+//! [`LabelHandler`]: crate::label::Handler
 
 use std::{error::Error, fs::File, process};
 
@@ -15,8 +18,8 @@ use crate::decoder::Encoding;
 use crate::windows::search::Search;
 use crate::{
     input,
-    label::LabelHandler,
-    screen::ScreenHandler,
+    label::Handler as LabelHandler,
+    screen::Handler as ScreenHandler,
     windows::{
         editor::Editor, jump_to_byte::JumpToByte, unsaved_changes::UnsavedChanges, KeyHandler,
         Window,
@@ -55,7 +58,7 @@ pub(crate) enum Action {
 }
 
 /// State Information needed by the [`ScreenHandler`] and [`KeyHandler`].
-pub struct AppData {
+pub struct Data {
     /// The file under editing.
     pub file: File,
 
@@ -105,7 +108,7 @@ pub struct AppData {
     pub(crate) search_offsets: Vec<usize>,
 }
 
-impl AppData {
+impl Data {
     /// Reindexes contents to find locations of the user's search term.
     pub(crate) fn reindex_search(&mut self) {
         self.search_offsets = self
@@ -121,7 +124,7 @@ impl AppData {
 /// to user actions.
 pub struct Application {
     /// The application's state and data.
-    pub data: AppData,
+    pub data: Data,
 
     /// Renders and displays objects to the terminal.
     pub(crate) display: ScreenHandler,
@@ -132,12 +135,14 @@ pub struct Application {
 
     /// The window that handles keyboard input. This is usually in the form of the Hex/ASCII editor
     /// or popups.
-    pub(crate) key_handler: Box<dyn KeyHandler>,
+    pub key_handler: Box<dyn KeyHandler>,
 }
 
 impl Application {
     /// Creates a new application, focusing the Hex editor and starting with an offset of 0 by
     /// default. This is called once at the beginning of the program.
+    ///
+    /// # Errors
     ///
     /// This errors out if the file specified is empty.
     pub fn new(file: File, encoding: Encoding, offset: usize) -> Result<Self, Box<dyn Error>> {
@@ -162,7 +167,7 @@ impl Application {
         let display = ScreenHandler::new()?;
 
         let app = Self {
-            data: AppData {
+            data: Data {
                 file,
                 contents,
                 encoding,
@@ -191,6 +196,10 @@ impl Application {
 
     /// A loop that repeatedly renders the terminal and modifies state based on input. Is stopped
     /// when input handling receives CNTRLq, the command to stop.
+    ///
+    /// # Errors
+    ///
+    /// This errors when the UI fails to render.
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
         ScreenHandler::setup()?;
         loop {
@@ -240,6 +249,10 @@ impl Application {
     /// Handles all forms of user input. This calls out to code in [input], which uses
     /// [Application's `key_handler` method](Application::key_handler) to determine what to do for
     /// key input.
+    ///
+    /// # Errors
+    ///
+    /// This errors when handling the key event fails.
     pub fn handle_input(&mut self, event: Event) -> Result<bool, Box<dyn Error>> {
         match event {
             Event::Key(key) => {

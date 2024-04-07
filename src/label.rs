@@ -42,7 +42,7 @@ impl fmt::Display for Endianness {
 }
 
 #[derive(Default)]
-pub struct LabelHandler {
+pub struct Handler {
     signed_eight: String,
     signed_sixteen: String,
     signed_thirtytwo: String,
@@ -63,7 +63,7 @@ pub struct LabelHandler {
     pub(crate) endianness: Endianness,
 }
 
-impl Index<&str> for LabelHandler {
+impl Index<&str> for Handler {
     type Output = String;
 
     fn index(&self, index: &str) -> &Self::Output {
@@ -89,7 +89,7 @@ impl Index<&str> for LabelHandler {
     }
 }
 
-impl LabelHandler {
+impl Handler {
     pub(crate) fn new(bytes: &[u8], offset: usize) -> Self {
         let mut labels = Self { ..Default::default() };
         labels.update_stream_length(8);
@@ -243,7 +243,7 @@ mod tests {
     fn test_binary_label() {
         // Given a label handler with the content 'hello' and offset of 0
         let content = "hello".as_bytes();
-        let mut label_handler = LabelHandler::new(content, 0);
+        let mut label_handler = Handler::new(content, 0);
         // The binary label should contain the binary veresion of the first character
         assert!(label_handler.binary.eq("01101000"));
 

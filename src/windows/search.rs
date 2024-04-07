@@ -4,7 +4,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::{app::AppData, label::LabelHandler, screen::ScreenHandler};
+use crate::{app::Data, label::Handler as LabelHandler, screen::Handler as ScreenHandler};
 
 use super::{adjust_offset, KeyHandler, PopupOutput, Window};
 
@@ -33,16 +33,16 @@ impl KeyHandler for Search {
     fn is_focusing(&self, window_type: super::Window) -> bool {
         window_type == Window::Search
     }
-    fn char(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler, c: char) {
+    fn char(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler, c: char) {
         self.input.push(c);
     }
     fn get_user_input(&self) -> PopupOutput {
         PopupOutput::Str(&self.input)
     }
-    fn backspace(&mut self, _: &mut AppData, _: &mut ScreenHandler, _: &mut LabelHandler) {
+    fn backspace(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {
         self.input.pop();
     }
-    fn enter(&mut self, app: &mut AppData, display: &mut ScreenHandler, labels: &mut LabelHandler) {
+    fn enter(&mut self, app: &mut Data, display: &mut ScreenHandler, labels: &mut LabelHandler) {
         let byte_sequence_to_search = match parse_input(&self.input) {
             Ok(s) => s,
             Err(e) => {
@@ -107,7 +107,7 @@ pub(crate) enum SearchDirection {
 }
 
 pub(crate) fn perform_search(
-    app: &mut AppData,
+    app: &mut Data,
     display: &mut ScreenHandler,
     labels: &mut LabelHandler,
     search_direction: &SearchDirection,
