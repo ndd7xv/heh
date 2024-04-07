@@ -121,6 +121,8 @@ To handle key events:
 heh.handle_input(crossterm::event::Event::Key(/* */)).unwrap();
 ```
 
+See the [binsider](https://github.com/orhun/binsider) project for an example use case.
+
 # Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
