@@ -118,7 +118,7 @@ terminal.draw(|frame| {
 To handle key events:
 
 ```rust
-heh.handle_input(crossterm::event::Event::Key(/* */)).unwrap();
+heh.handle_input(&crossterm::event::Event::Key(/* */)).unwrap();
 ```
 
 See the [binsider](https://github.com/orhun/binsider) project for an example use case.
