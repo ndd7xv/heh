@@ -7,7 +7,12 @@ and this project _somewhat_ adheres to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [0.5.0] - 2023-04-08
+
 - Fixed a bug where '--version' did not print `heh`'s version (thanks for the report, [@davidak](https://github.com/davidak))
+- Documentation updates with regards contributing, the state of the repo, and typos
+- Distros section for README added (thanks [@orhun](https://github.com/orhun)!)
+- `heh` can now be used as a library!!! (BIG thanks [@orhun](https://github.com/orhun)!)
 
 ## [0.4.1] - 2023-07-31
 
