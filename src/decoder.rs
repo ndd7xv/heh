@@ -1,3 +1,5 @@
+//! Decoder utilities.
+
 use std::str::from_utf8;
 
 use crate::character::{Category, RichChar, Type, CHARACTER_FILL, CHARACTER_UNKNOWN};
@@ -80,7 +82,7 @@ impl<'a> Iterator for LossyUTF8Decoder<'a> {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) enum Encoding {
+pub enum Encoding {
     Ascii,
     Utf8,
 }

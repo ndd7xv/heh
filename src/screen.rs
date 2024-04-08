@@ -18,26 +18,26 @@ use ratatui::{
     style::{Color, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, Paragraph},
-    Terminal,
+    Frame, Terminal,
 };
 
 use crate::chunk::OverlappingChunks;
 use crate::{
-    app::{AppData, Nibble},
+    app::{Data, Nibble},
     decoder::ByteAlignedDecoder,
-    label::{LabelHandler, LABEL_TITLES},
+    label::{Handler as LabelHandler, LABEL_TITLES},
     windows::{editor::Editor, KeyHandler, Window},
 };
 
 const COLOR_NULL: Color = Color::DarkGray;
 
-pub(crate) struct ScreenHandler {
-    terminal: Terminal<CrosstermBackend<Stdout>>,
-    pub(crate) terminal_size: Rect,
-    pub(crate) comp_layouts: ComponentLayouts,
+pub struct Handler {
+    pub terminal: Terminal<CrosstermBackend<Stdout>>,
+    pub terminal_size: Rect,
+    pub comp_layouts: ComponentLayouts,
 }
 
-pub(crate) struct ComponentLayouts {
+pub struct ComponentLayouts {
     line_numbers: Rect,
     pub(crate) hex: Rect,
     pub(crate) ascii: Rect,
@@ -47,8 +47,13 @@ pub(crate) struct ComponentLayouts {
     pub(crate) lines_per_screen: usize,
 }
 
-impl ScreenHandler {
-    pub(crate) fn new() -> Result<Self, Box<dyn Error>> {
+impl Handler {
+    /// Creates a new screen handler.
+    ///
+    /// # Errors
+    ///
+    /// This errors when constructing the terminal or retrieving the terminal size fails.
+    pub fn new() -> Result<Self, Box<dyn Error>> {
         let terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
         let terminal_size = terminal.size()?;
         Ok(Self {
@@ -94,7 +99,7 @@ impl ScreenHandler {
     /// Calculates the dimensions of the components that will be continually displayed.
     ///
     /// This includes the editors, labels, and address table.
-    fn calculate_dimensions(frame: Rect, window: &dyn KeyHandler) -> ComponentLayouts {
+    pub fn calculate_dimensions(frame: Rect, window: &dyn KeyHandler) -> ComponentLayouts {
         // Establish Constraints
         let sections = Layout::default()
             .direction(Direction::Vertical)
@@ -169,7 +174,7 @@ impl ScreenHandler {
     /// Generates all the visuals of the file contents to be displayed to user by calling
     /// [`generate_hex`] and [`generate_decoded`].
     fn generate_text(
-        app_info: &mut AppData,
+        app_info: &mut Data,
         bytes_per_line: usize,
         lines_per_screen: usize,
     ) -> (Text, Text, Text) {
@@ -200,17 +205,17 @@ impl ScreenHandler {
     /// [`calculate_dimensions`](Self::calculate_dimensions).
     pub(crate) fn render(
         &mut self,
-        app_info: &mut AppData,
+        app_info: &mut Data,
         labels: &LabelHandler,
         window: &dyn KeyHandler,
     ) -> Result<(), Box<dyn Error>> {
         app_info.contents.compute_new_window(app_info.offset);
 
-        self.terminal.draw(|f| {
+        self.terminal.draw(|frame| {
             // We check if we need to recompute the terminal size in the case that the saved off
             // variable differs from the current frame, which can occur when a terminal is resized
             // between an event handling and a rendering.
-            let size = f.size();
+            let size = frame.size();
             if size != self.terminal_size {
                 self.terminal_size = size;
                 self.comp_layouts = Self::calculate_dimensions(self.terminal_size, window);
@@ -223,80 +228,101 @@ impl ScreenHandler {
                     * self.comp_layouts.bytes_per_line;
             }
 
-            // Check if terminal is large enough
-            if self.terminal_size.width < 50 || self.terminal_size.height < 15 {
-                let dimension_notification = Paragraph::new("Terminal dimensions must be larger!")
-                    .block(Block::default())
-                    .alignment(Alignment::Center);
-                let vertical_center = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Percentage(40),
-                        Constraint::Percentage(20),
-                        Constraint::Percentage(40),
-                    ])
-                    .split(self.terminal_size);
-                f.render_widget(dimension_notification, vertical_center[1]);
-                return;
-            }
-
-            let (address_text, hex_text, ascii_text) = Self::generate_text(
+            Self::render_frame(
+                frame,
+                self.terminal_size,
                 app_info,
-                self.comp_layouts.bytes_per_line,
-                self.comp_layouts.lines_per_screen,
+                labels,
+                window,
+                &self.comp_layouts,
             );
-
-            // Render Line Numbers
-            f.render_widget(
-                Paragraph::new(address_text)
-                    .block(Block::default().borders(Borders::ALL).title("Address")),
-                self.comp_layouts.line_numbers,
-            );
-
-            // Render Hex
-            f.render_widget(
-                Paragraph::new(hex_text).block(
-                    Block::default().borders(Borders::ALL).title("Hex").style(
-                        if window.is_focusing(Window::Hex) {
-                            Style::default().fg(Color::Yellow)
-                        } else {
-                            Style::default()
-                        },
-                    ),
-                ),
-                self.comp_layouts.hex,
-            );
-
-            // Render ASCII
-            f.render_widget(
-                Paragraph::new(ascii_text).block(
-                    Block::default().borders(Borders::ALL).title("ASCII").style(
-                        if window.is_focusing(Window::Ascii) {
-                            Style::default().fg(Color::Yellow)
-                        } else {
-                            Style::default()
-                        },
-                    ),
-                ),
-                self.comp_layouts.ascii,
-            );
-
-            // Render Info
-            for (i, label) in self.comp_layouts.labels.iter().enumerate() {
-                f.render_widget(
-                    Paragraph::new(labels[LABEL_TITLES[i]].clone())
-                        .block(Block::default().borders(Borders::ALL).title(LABEL_TITLES[i])),
-                    *label,
-                );
-            }
-
-            // Render Popup
-            if !window.is_focusing(Window::Hex) && !window.is_focusing(Window::Ascii) {
-                f.render_widget(Clear, self.comp_layouts.popup);
-                f.render_widget(window.widget(), self.comp_layouts.popup);
-            }
         })?;
         Ok(())
+    }
+
+    /// Display the addresses, editors, labels, and popups based off of the specifications of
+    /// [`ComponentLayouts`], defined by
+    /// [`calculate_dimensions`](Self::calculate_dimensions).
+    pub(crate) fn render_frame(
+        frame: &mut Frame,
+        area: Rect,
+        app_info: &mut Data,
+        labels: &LabelHandler,
+        window: &dyn KeyHandler,
+        comp_layouts: &ComponentLayouts,
+    ) {
+        // Check if terminal is large enough
+        if area.width < 50 || area.height < 15 {
+            let dimension_notification = Paragraph::new("Terminal dimensions must be larger!")
+                .block(Block::default())
+                .alignment(Alignment::Center);
+            let vertical_center = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Percentage(40),
+                    Constraint::Percentage(20),
+                    Constraint::Percentage(40),
+                ])
+                .split(area);
+            frame.render_widget(dimension_notification, vertical_center[1]);
+            return;
+        }
+
+        let (address_text, hex_text, ascii_text) = Self::generate_text(
+            app_info,
+            comp_layouts.bytes_per_line,
+            comp_layouts.lines_per_screen,
+        );
+
+        // Render Line Numbers
+        frame.render_widget(
+            Paragraph::new(address_text)
+                .block(Block::default().borders(Borders::ALL).title("Address")),
+            comp_layouts.line_numbers,
+        );
+
+        // Render Hex
+        frame.render_widget(
+            Paragraph::new(hex_text).block(
+                Block::default().borders(Borders::ALL).title("Hex").style(
+                    if window.is_focusing(Window::Hex) {
+                        Style::default().fg(Color::Yellow)
+                    } else {
+                        Style::default()
+                    },
+                ),
+            ),
+            comp_layouts.hex,
+        );
+
+        // Render ASCII
+        frame.render_widget(
+            Paragraph::new(ascii_text).block(
+                Block::default().borders(Borders::ALL).title("ASCII").style(
+                    if window.is_focusing(Window::Ascii) {
+                        Style::default().fg(Color::Yellow)
+                    } else {
+                        Style::default()
+                    },
+                ),
+            ),
+            comp_layouts.ascii,
+        );
+
+        // Render Info
+        for (i, label) in comp_layouts.labels.iter().enumerate() {
+            frame.render_widget(
+                Paragraph::new(labels[LABEL_TITLES[i]].clone())
+                    .block(Block::default().borders(Borders::ALL).title(LABEL_TITLES[i])),
+                *label,
+            );
+        }
+
+        // Render Popup
+        if !window.is_focusing(Window::Hex) && !window.is_focusing(Window::Ascii) {
+            frame.render_widget(Clear, comp_layouts.popup);
+            frame.render_widget(window.widget(), comp_layouts.popup);
+        }
     }
 }
 
@@ -306,7 +332,7 @@ impl ScreenHandler {
 /// NOTE: In UTF-8, a character takes up to 4 bytes and thus the encoding can break at the ends of a
 /// chunk. Increasing the chunk size by 3 bytes at both ends before decoding and cropping them of
 /// afterwards solves the issue for the visible parts.
-fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usize) -> Vec<Line> {
+fn generate_hex(app_info: &Data, bytes_per_line: usize, lines_per_screen: usize) -> Vec<Line> {
     let initial_offset = app_info.start_address.min(3);
     OverlappingChunks::new(
         &app_info.contents[(app_info.start_address - initial_offset)..],
@@ -395,11 +421,7 @@ fn generate_hex(app_info: &AppData, bytes_per_line: usize, lines_per_screen: usi
 /// NOTE: In UTF-8, a character takes up to 4 bytes and thus the encoding can break at the ends of a
 /// chunk. Increasing the chunk size by 3 bytes at both ends before decoding and cropping them of
 /// afterwards solves the issue for the visible parts.
-fn generate_decoded(
-    app_info: &AppData,
-    bytes_per_line: usize,
-    lines_per_screen: usize,
-) -> Vec<Line> {
+fn generate_decoded(app_info: &Data, bytes_per_line: usize, lines_per_screen: usize) -> Vec<Line> {
     let initial_offset = app_info.start_address.min(3);
     OverlappingChunks::new(
         &app_info.contents[(app_info.start_address - initial_offset)..],
@@ -474,8 +496,7 @@ mod tests {
 
         // Given a terminal size of 100 x 100, when dimensions are calculated
         let key_handler: Box<dyn KeyHandler> = Box::from(Editor::Ascii);
-        let layout =
-            ScreenHandler::calculate_dimensions(Rect::new(0, 0, width, height), &*key_handler);
+        let layout = Handler::calculate_dimensions(Rect::new(0, 0, width, height), &*key_handler);
 
         // The "editors" section, which consists of the line number column, Hex input box, and
         // ASCII input box should have a size of height - 12 (there are 4 labels per column and

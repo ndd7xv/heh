@@ -2,19 +2,24 @@
 //!
 //! The application holds the main components of the other modules, like the [`ScreenHandler`],
 //! [`LabelHandler`], and input handling, as well as the state data that each of them need.
+//!
+//! [`ScreenHandler`]: crate::screen::Handler
+//! [`LabelHandler`]: crate::label::Handler
 
 use std::{error::Error, fs::File, process};
 
 use arboard::Clipboard;
 use crossterm::event::{self, Event, KeyEventKind};
+use ratatui::layout::Rect;
+use ratatui::Frame;
 
 use crate::buffer::AsyncBuffer;
 use crate::decoder::Encoding;
 use crate::windows::search::Search;
 use crate::{
     input,
-    label::LabelHandler,
-    screen::ScreenHandler,
+    label::Handler as LabelHandler,
+    screen::Handler as ScreenHandler,
     windows::{
         editor::Editor, jump_to_byte::JumpToByte, unsaved_changes::UnsavedChanges, KeyHandler,
         Window,
@@ -53,9 +58,9 @@ pub(crate) enum Action {
 }
 
 /// State Information needed by the [`ScreenHandler`] and [`KeyHandler`].
-pub(crate) struct AppData {
+pub struct Data {
     /// The file under editing.
-    pub(crate) file: File,
+    pub file: File,
 
     /// The file content.
     pub(crate) contents: AsyncBuffer,
@@ -103,7 +108,7 @@ pub(crate) struct AppData {
     pub(crate) search_offsets: Vec<usize>,
 }
 
-impl AppData {
+impl Data {
     /// Reindexes contents to find locations of the user's search term.
     pub(crate) fn reindex_search(&mut self) {
         self.search_offsets = self
@@ -117,32 +122,30 @@ impl AppData {
 
 /// Application provides the user interaction interface and renders the terminal screen in response
 /// to user actions.
-pub(crate) struct Application {
+pub struct Application {
     /// The application's state and data.
-    pub(crate) data: AppData,
+    pub data: Data,
 
     /// Renders and displays objects to the terminal.
     pub(crate) display: ScreenHandler,
 
     /// The labels at the bottom of the UI that provide information
     /// based on the current offset.
-    pub(crate) labels: LabelHandler,
+    pub labels: LabelHandler,
 
     /// The window that handles keyboard input. This is usually in the form of the Hex/ASCII editor
     /// or popups.
-    pub(crate) key_handler: Box<dyn KeyHandler>,
+    pub key_handler: Box<dyn KeyHandler>,
 }
 
 impl Application {
     /// Creates a new application, focusing the Hex editor and starting with an offset of 0 by
     /// default. This is called once at the beginning of the program.
     ///
+    /// # Errors
+    ///
     /// This errors out if the file specified is empty.
-    pub(crate) fn new(
-        file: File,
-        encoding: Encoding,
-        offset: usize,
-    ) -> Result<Self, Box<dyn Error>> {
+    pub fn new(file: File, encoding: Encoding, offset: usize) -> Result<Self, Box<dyn Error>> {
         let contents = AsyncBuffer::new(&file)?;
         if contents.is_empty() {
             eprintln!("heh does not support editing empty files");
@@ -164,7 +167,7 @@ impl Application {
         let display = ScreenHandler::new()?;
 
         let app = Self {
-            data: AppData {
+            data: Data {
                 file,
                 contents,
                 encoding,
@@ -193,11 +196,16 @@ impl Application {
 
     /// A loop that repeatedly renders the terminal and modifies state based on input. Is stopped
     /// when input handling receives CNTRLq, the command to stop.
-    pub(crate) fn run(&mut self) -> Result<(), Box<dyn Error>> {
+    ///
+    /// # Errors
+    ///
+    /// This errors when the UI fails to render.
+    pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
         ScreenHandler::setup()?;
         loop {
             self.render_display()?;
-            if !self.handle_input()? {
+            let event = event::read()?;
+            if !self.handle_input(&event)? {
                 break;
             }
         }
@@ -208,25 +216,54 @@ impl Application {
     /// Renders the display. This is a wrapper around [`ScreenHandler`'s
     /// render](ScreenHandler::render) method.
     fn render_display(&mut self) -> Result<(), Box<dyn Error>> {
-        self.display.render(&mut self.data, &self.labels, self.key_handler.as_ref())?;
-        Ok(())
+        self.display.render(&mut self.data, &self.labels, self.key_handler.as_ref())
+    }
+
+    /// Renders a single frame for the given area.
+    pub fn render_frame(&mut self, frame: &mut Frame, area: Rect) {
+        self.data.contents.compute_new_window(self.data.offset);
+        // We check if we need to recompute the terminal size in the case that the saved off
+        // variable differs from the current frame, which can occur when a terminal is resized
+        // between an event handling and a rendering.
+        if area != self.display.terminal_size {
+            self.display.terminal_size = area;
+            self.display.comp_layouts =
+                ScreenHandler::calculate_dimensions(area, self.key_handler.as_ref());
+            // We change the start_address here to ensure that 0 is ALWAYS the first start
+            // address. We round to preventing constant resizing always moving to 0.
+            self.data.start_address = (self.data.start_address
+                + (self.display.comp_layouts.bytes_per_line / 2))
+                / self.display.comp_layouts.bytes_per_line
+                * self.display.comp_layouts.bytes_per_line;
+        }
+        ScreenHandler::render_frame(
+            frame,
+            self.display.terminal_size,
+            &mut self.data,
+            &self.labels,
+            self.key_handler.as_ref(),
+            &self.display.comp_layouts,
+        );
     }
 
     /// Handles all forms of user input. This calls out to code in [input], which uses
     /// [Application's `key_handler` method](Application::key_handler) to determine what to do for
     /// key input.
-    fn handle_input(&mut self) -> Result<bool, Box<dyn Error>> {
-        let event = event::read()?;
+    ///
+    /// # Errors
+    ///
+    /// This errors when handling the key event fails.
+    pub fn handle_input(&mut self, event: &Event) -> Result<bool, Box<dyn Error>> {
         match event {
             Event::Key(key) => {
                 if key.kind == KeyEventKind::Press {
                     self.labels.notification.clear();
-                    return input::handle_key_input(self, key);
+                    return input::handle_key_input(self, *key);
                 }
             }
             Event::Mouse(mouse) => {
                 self.labels.notification.clear();
-                input::handle_mouse_input(self, mouse);
+                input::handle_mouse_input(self, *mouse);
             }
             Event::Resize(_, _) | Event::FocusGained | Event::FocusLost | Event::Paste(_) => {}
         }
