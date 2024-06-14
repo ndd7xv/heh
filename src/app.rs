@@ -117,6 +117,16 @@ impl Data {
             .enumerate()
             .filter_map(|(idx, w)| (w == self.search_term.as_bytes()).then_some(idx))
             .collect();
+
+        if let Ok(hex_search_term) = hex::decode(self.search_term.replace(' ', "")) {
+            self.search_offsets.extend(
+                self.contents
+                    .windows(hex_search_term.len())
+                    .enumerate()
+                    .filter_map(|(idx, w)| (w == hex_search_term).then_some(idx))
+                    .collect::<Vec<usize>>(),
+            );
+        }
     }
 }
 

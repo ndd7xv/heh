@@ -17,6 +17,7 @@ clap = { version = "4.5.6", features = ["derive"] }
 arboard = { version = "3.4.0", default-features = false }
 memmap2 = "0.9.4"
 crossbeam = "0.8.4"
+hex = "0.4.3"
 
 [profile.dev]
 opt-level = 1 # Default would excessively lag
