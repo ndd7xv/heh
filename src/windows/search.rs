@@ -43,20 +43,13 @@ impl KeyHandler for Search {
         self.input.pop();
     }
     fn enter(&mut self, app: &mut Data, display: &mut ScreenHandler, labels: &mut LabelHandler) {
-        let byte_sequence_to_search = match parse_input(&self.input) {
-            Ok(s) => s,
-            Err(e) => {
-                labels.notification = format!("Error: {e:?}");
-                return;
-            }
-        };
+        let byte_sequence_to_search = self.input.as_bytes();
         if byte_sequence_to_search.is_empty() {
             labels.notification = "Empty search query".into();
             return;
         }
 
-        app.search_term = String::from_utf8(byte_sequence_to_search)
-            .expect("parse_input should return valid utf-8");
+        app.search_term.clone_from(&self.input);
         app.reindex_search();
 
         perform_search(app, display, labels, &SearchDirection::Forward);
@@ -71,33 +64,6 @@ impl KeyHandler for Search {
                 .borders(Borders::ALL)
                 .style(Style::default().fg(Color::Yellow)),
         )
-    }
-}
-
-fn parse_input(input: &str) -> Result<Vec<u8>, String> {
-    if !input.is_ascii() {
-        return Err("Expect ASCII search string".into());
-    }
-    let mut input = input.as_bytes();
-    let mut result = vec![];
-
-    loop {
-        match input {
-            [] => return Ok(result),
-            // [0x30, 0x78] are hex for '0x'
-            [0x30, 0x78, h1, h2, ..] => {
-                let bytes = [*h1, *h2];
-                let hex = std::str::from_utf8(&bytes).expect("input string to contain ascii");
-                let byte = u8::from_str_radix(hex, 16)
-                    .map_err(|e| format!("Parsing {:?} {:?}: {e}", *h1 as char, *h2 as char))?;
-                result.push(byte);
-                input = &input[4..];
-            }
-            [ascii_symbol, ..] => {
-                result.push(*ascii_symbol);
-                input = &input[1..];
-            }
-        }
     }
 }
 
@@ -160,17 +126,7 @@ fn get_next_match_index(
 
 #[cfg(test)]
 mod tests {
-    use super::{get_next_match_index, parse_input, SearchDirection};
-
-    #[test]
-    fn test_parse() {
-        assert_eq!(parse_input(""), Ok(vec![]));
-        assert_eq!(parse_input("0x"), Ok(vec![0x30, 0x78]));
-        assert_eq!(parse_input("asdf"), Ok(b"asdf".to_vec()));
-        assert_eq!(parse_input("0x30"), Ok(b"0".to_vec()));
-        assert_eq!(parse_input("0x30x"), Ok(b"0x".to_vec()));
-        assert_eq!(parse_input("abc0x64e"), Ok(b"abcde".to_vec()));
-    }
+    use super::{get_next_match_index, SearchDirection};
 
     #[test]
     fn test_search() {
