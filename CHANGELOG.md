@@ -7,6 +7,12 @@ and this project _somewhat_ adheres to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [0.6.0] - 2024-07-28
+
+- Support searching by hex
+- Remove 0x searching functionality
+- Bump ratatui from 0.26.1 to 0.26.2
+
 ## [0.5.0] - 2023-04-08
 
 - Fixed a bug where '--version' did not print `heh`'s version (thanks for the report, [@davidak](https://github.com/davidak))
