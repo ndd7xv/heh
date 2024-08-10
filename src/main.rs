@@ -8,7 +8,7 @@
 use std::{error::Error, fs::OpenOptions, io, process};
 
 use clap::{Parser, ValueEnum};
-use crossterm::tty::IsTty;
+use ratatui::crossterm::tty::IsTty;
 
 use heh::app::Application;
 use heh::decoder::Encoding;

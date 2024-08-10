@@ -7,13 +7,13 @@ use std::{
     rc::Rc,
 };
 
-use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
 use ratatui::{
     backend::CrosstermBackend,
+    crossterm::{
+        event::{DisableMouseCapture, EnableMouseCapture},
+        execute,
+        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    },
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     text::{Line, Span, Text},
@@ -55,7 +55,8 @@ impl Handler {
     /// This errors when constructing the terminal or retrieving the terminal size fails.
     pub fn new() -> Result<Self, Box<dyn Error>> {
         let terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
-        let terminal_size = terminal.size()?;
+        let size = terminal.size()?;
+        let terminal_size = Rect::new(0, 0, size.width, size.height);
         Ok(Self {
             terminal,
             terminal_size,
@@ -215,7 +216,7 @@ impl Handler {
             // We check if we need to recompute the terminal size in the case that the saved off
             // variable differs from the current frame, which can occur when a terminal is resized
             // between an event handling and a rendering.
-            let size = frame.size();
+            let size = frame.area();
             if size != self.terminal_size {
                 self.terminal_size = size;
                 self.comp_layouts = Self::calculate_dimensions(self.terminal_size, window);
