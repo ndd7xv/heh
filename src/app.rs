@@ -9,7 +9,7 @@
 use std::{error::Error, fs::File, process};
 
 use arboard::Clipboard;
-use crossterm::event::{self, Event, KeyEventKind};
+use ratatui::crossterm::event::{self, Event, KeyEventKind};
 use ratatui::layout::Rect;
 use ratatui::Frame;
 

@@ -9,7 +9,9 @@ use std::{
     io::{Seek, Write},
 };
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use ratatui::crossterm::event::{
+    KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+};
 
 use crate::{
     app::{Action, Application, Nibble},
