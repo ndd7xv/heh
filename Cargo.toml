@@ -11,8 +11,8 @@ categories = ["command-line-utilities", "text-editors"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ratatui = "0.28.0"
-clap = { version = "4.5.16", features = ["derive"] }
+ratatui = "0.28.1"
+clap = { version = "4.5.15", features = ["derive"] }
 arboard = { version = "3.4.0", default-features = false }
 memmap2 = "0.9.4"
 crossbeam = "0.8.4"

@@ -92,9 +92,8 @@ Add `heh` to your dependencies in `Cargo.toml`:
 
 ```toml
 [dependencies]
-ratatui = "0.24"
-crossterm = "0.27"
-heh = "0.4"
+ratatui = "0.28"
+heh = "0.6"
 ```
 
 Create the application:
@@ -104,14 +103,14 @@ use heh::app::Application as Heh;
 use heh::decoder::Encoding;
 
 let file = std::fs::OpenOptions::new().read(true).write(true).open(path).unwrap();
-let heh = Heh::new(file, Encoding::Ascii, 0).unwrap();
+let mut heh = Heh::new(file, Encoding::Ascii, 0).unwrap();
 ```
 
 Then you can render a frame as follows:
 
 ```rust
 terminal.draw(|frame| {
-    heh.render_frame(frame, frame.size());
+    heh.render_frame(frame, frame.area());
 });
 ```
 
@@ -121,7 +120,9 @@ To handle key events:
 heh.handle_input(&ratatui::crossterm::event::Event::Key(/* */)).unwrap();
 ```
 
-See the [binsider](https://github.com/orhun/binsider) project for an example use case.
+See the [demo example](examples/demo.rs) for full code.
+
+See the [binsider](https://github.com/orhun/binsider) project for an example application that uses `heh`.
 
 # Contributing
 
