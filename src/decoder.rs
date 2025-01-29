@@ -15,7 +15,7 @@ impl<'a> From<&'a [u8]> for LossyASCIIDecoder<'a> {
     }
 }
 
-impl<'a> Iterator for LossyASCIIDecoder<'a> {
+impl Iterator for LossyASCIIDecoder<'_> {
     type Item = (char, Type);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -44,7 +44,7 @@ impl<'a> From<&'a [u8]> for LossyUTF8Decoder<'a> {
     }
 }
 
-impl<'a> Iterator for LossyUTF8Decoder<'a> {
+impl Iterator for LossyUTF8Decoder<'_> {
     type Item = (char, Type);
 
     fn next(&mut self) -> Option<Self::Item> {
