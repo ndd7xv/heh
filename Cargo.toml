@@ -12,7 +12,7 @@ categories = ["command-line-utilities", "text-editors"]
 
 [dependencies]
 ratatui = "0.29.0"
-clap = { version = "4.5.32", features = ["derive"] }
+clap = { version = "4.5.34", features = ["derive"] }
 arboard = { version = "3.4.1", default-features = false }
 memmap2 = "0.9.5"
 crossbeam = "0.8.4"
