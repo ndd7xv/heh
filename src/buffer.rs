@@ -2,8 +2,8 @@ use std::{
     error::Error,
     ops::{Deref, DerefMut},
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
 };
 
@@ -99,43 +99,45 @@ impl AsyncBuffer {
             unsafe { std::slice::from_raw_parts_mut(internal_buf.0, internal_buf.1) };
         let mut internal_start = window_offset.load(Ordering::SeqCst);
 
-        std::thread::spawn(move || loop {
-            for rcv in &rx {
-                has_work.store(true, Ordering::SeqCst);
+        std::thread::spawn(move || {
+            loop {
+                for rcv in &rx {
+                    has_work.store(true, Ordering::SeqCst);
 
-                let start = window_offset.load(Ordering::SeqCst);
-                let internal_buf = &mut internal_buf[start..];
+                    let start = window_offset.load(Ordering::SeqCst);
+                    let internal_buf = &mut internal_buf[start..];
 
-                match rcv {
-                    EditMessage::Remove => unsafe {
-                        debug_assert!(internal_start >= start);
+                    match rcv {
+                        EditMessage::Remove => unsafe {
+                            debug_assert!(internal_start >= start);
 
-                        std::ptr::copy(
-                            internal_buf.as_ptr().add(internal_start - start),
-                            internal_buf.as_mut_ptr(),
-                            internal_buf.len() - (internal_start - start),
-                        );
+                            std::ptr::copy(
+                                internal_buf.as_ptr().add(internal_start - start),
+                                internal_buf.as_mut_ptr(),
+                                internal_buf.len() - (internal_start - start),
+                            );
 
-                        internal_start = start;
-                    },
-                    EditMessage::Add(byte) => unsafe {
-                        debug_assert_eq!(internal_start, window_offset.load(Ordering::SeqCst));
+                            internal_start = start;
+                        },
+                        EditMessage::Add(byte) => unsafe {
+                            debug_assert_eq!(internal_start, window_offset.load(Ordering::SeqCst));
 
-                        std::ptr::copy(
-                            internal_buf.as_ptr(),
-                            internal_buf.as_mut_ptr().add(1),
-                            internal_buf.len() - 1,
-                        );
+                            std::ptr::copy(
+                                internal_buf.as_ptr(),
+                                internal_buf.as_mut_ptr().add(1),
+                                internal_buf.len() - 1,
+                            );
 
-                        internal_buf[0] = byte;
-                    },
-                    EditMessage::ModifyWindow(new_window) => {
-                        window_offset.store(new_window, Ordering::SeqCst);
-                        internal_start = new_window;
+                            internal_buf[0] = byte;
+                        },
+                        EditMessage::ModifyWindow(new_window) => {
+                            window_offset.store(new_window, Ordering::SeqCst);
+                            internal_start = new_window;
+                        }
                     }
-                }
 
-                has_work.store(rx.is_full(), Ordering::SeqCst);
+                    has_work.store(rx.is_full(), Ordering::SeqCst);
+                }
             }
         });
     }

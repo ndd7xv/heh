@@ -17,9 +17,8 @@ use crate::{
     app::{Action, Application, Nibble},
     label::LABEL_TITLES,
     windows::{
-        adjust_offset,
-        search::{perform_search, SearchDirection},
-        PopupOutput, Window,
+        PopupOutput, Window, adjust_offset,
+        search::{SearchDirection, perform_search},
     },
 };
 

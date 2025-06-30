@@ -4,8 +4,8 @@ use heh::app::Application as Heh;
 use heh::decoder::Encoding;
 
 use ratatui::{
-    crossterm::event::{self, Event, KeyCode},
     Frame,
+    crossterm::event::{self, Event, KeyCode},
 };
 
 fn main() {

@@ -7,9 +7,8 @@ use crate::{
 };
 
 use super::{
-    adjust_offset,
-    search::{perform_search, SearchDirection},
-    KeyHandler, Window,
+    KeyHandler, Window, adjust_offset,
+    search::{SearchDirection, perform_search},
 };
 
 /// The main windows that allow users to edit HEX and ASCII.
