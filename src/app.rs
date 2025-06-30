@@ -9,9 +9,9 @@
 use std::{error::Error, fs::File, process};
 
 use arboard::Clipboard;
+use ratatui::Frame;
 use ratatui::crossterm::event::{self, Event, KeyEventKind};
 use ratatui::layout::Rect;
-use ratatui::Frame;
 
 use crate::buffer::AsyncBuffer;
 use crate::decoder::Encoding;
@@ -21,8 +21,8 @@ use crate::{
     label::Handler as LabelHandler,
     screen::Handler as ScreenHandler,
     windows::{
-        editor::Editor, jump_to_byte::JumpToByte, unsaved_changes::UnsavedChanges, KeyHandler,
-        Window,
+        KeyHandler, Window, editor::Editor, jump_to_byte::JumpToByte,
+        unsaved_changes::UnsavedChanges,
     },
 };
 

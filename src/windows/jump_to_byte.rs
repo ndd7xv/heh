@@ -6,7 +6,7 @@ use ratatui::{
 
 use crate::{app::Data, label::Handler as LabelHandler, screen::Handler as ScreenHandler};
 
-use super::{adjust_offset, KeyHandler, PopupOutput, Window};
+use super::{KeyHandler, PopupOutput, Window, adjust_offset};
 
 /// A window that can accept input and attempt to move the cursor to the inputted byte.
 ///

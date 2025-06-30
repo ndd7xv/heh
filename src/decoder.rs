@@ -2,7 +2,7 @@
 
 use std::str::from_utf8;
 
-use crate::character::{Category, RichChar, Type, CHARACTER_FILL, CHARACTER_UNKNOWN};
+use crate::character::{CHARACTER_FILL, CHARACTER_UNKNOWN, Category, RichChar, Type};
 
 struct LossyASCIIDecoder<'a> {
     bytes: &'a [u8],

@@ -6,7 +6,7 @@ use ratatui::{
 
 use crate::{app::Data, label::Handler as LabelHandler, screen::Handler as ScreenHandler};
 
-use super::{adjust_offset, KeyHandler, PopupOutput, Window};
+use super::{KeyHandler, PopupOutput, Window, adjust_offset};
 
 /// A window that accepts either a hexadecimal or an ASCII sequence and moves cursor to the next
 /// occurrence of this sequence
@@ -126,7 +126,7 @@ fn get_next_match_index(
 
 #[cfg(test)]
 mod tests {
-    use super::{get_next_match_index, SearchDirection};
+    use super::{SearchDirection, get_next_match_index};
 
     #[test]
     fn test_search() {

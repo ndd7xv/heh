@@ -8,17 +8,17 @@ use std::{
 };
 
 use ratatui::{
+    Frame, Terminal,
     backend::CrosstermBackend,
     crossterm::{
         event::{DisableMouseCapture, EnableMouseCapture},
         execute,
-        terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+        terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame, Terminal,
 };
 
 use crate::chunk::OverlappingChunks;
@@ -26,7 +26,7 @@ use crate::{
     app::{Data, Nibble},
     decoder::ByteAlignedDecoder,
     label::{Handler as LabelHandler, LABEL_TITLES},
-    windows::{editor::Editor, KeyHandler, Window},
+    windows::{KeyHandler, Window, editor::Editor},
 };
 
 const COLOR_NULL: Color = Color::DarkGray;
