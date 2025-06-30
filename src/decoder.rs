@@ -15,7 +15,7 @@ impl<'a> From<&'a [u8]> for LossyASCIIDecoder<'a> {
     }
 }
 
-impl<'a> Iterator for LossyASCIIDecoder<'a> {
+impl Iterator for LossyASCIIDecoder<'_> {
     type Item = (char, Type);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -44,7 +44,7 @@ impl<'a> From<&'a [u8]> for LossyUTF8Decoder<'a> {
     }
 }
 
-impl<'a> Iterator for LossyUTF8Decoder<'a> {
+impl Iterator for LossyUTF8Decoder<'_> {
     type Item = (char, Type);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -142,7 +142,7 @@ mod tests {
 
         assert_eq!(TEST_BYTES.len(), characters.len());
         assert_eq!(
-            characters.iter().map(RichChar::escape).map(char::from).collect::<String>(),
+            characters.iter().map(RichChar::escape).collect::<String>(),
             "text, controls _ __, space _, unicode ��h �� la ����, null 0, invalid ���"
         );
     }
@@ -154,7 +154,7 @@ mod tests {
 
         assert_eq!(TEST_BYTES.len(), characters.len());
         assert_eq!(
-            characters.iter().map(RichChar::escape).map(char::from).collect::<String>(),
+            characters.iter().map(RichChar::escape).collect::<String>(),
             "text, controls _ __, space _, unicode ä•h à• la 💩•••, null 0, invalid ���"
         );
     }
