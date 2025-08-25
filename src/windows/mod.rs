@@ -56,7 +56,7 @@ pub trait KeyHandler {
     fn char(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler, _: char) {}
 
     /// Returns user input. Is currently used to get information from popups.
-    fn get_user_input(&self) -> PopupOutput {
+    fn get_user_input(&self) -> PopupOutput<'_> {
         PopupOutput::NoOutput
     }
 
@@ -66,7 +66,7 @@ pub trait KeyHandler {
     }
 
     /// Returns the contents to display on the screen
-    fn widget(&self) -> Paragraph {
+    fn widget(&self) -> Paragraph<'_> {
         Paragraph::new("")
     }
 }

@@ -36,7 +36,7 @@ impl KeyHandler for Search {
     fn char(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler, c: char) {
         self.input.push(c);
     }
-    fn get_user_input(&self) -> PopupOutput {
+    fn get_user_input(&self) -> PopupOutput<'_> {
         PopupOutput::Str(&self.input)
     }
     fn backspace(&mut self, _: &mut Data, _: &mut ScreenHandler, _: &mut LabelHandler) {
@@ -57,7 +57,7 @@ impl KeyHandler for Search {
     fn dimensions(&self) -> Option<(u16, u16)> {
         Some((50, 3))
     }
-    fn widget(&self) -> Paragraph {
+    fn widget(&self) -> Paragraph<'_> {
         Paragraph::new(Span::styled(&self.input, Style::default().fg(Color::White))).block(
             Block::default()
                 .title("Search:")
