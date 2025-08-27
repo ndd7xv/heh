@@ -446,11 +446,11 @@ fn handle_editor_drag(
         }
         mouse.row = editor_bottom_row - u16::from(!click_past_contents);
         if let Some(mut result) = handle_editor_cursor_action(window, app, mouse) {
-            if let Some(new_y) = result.0.checked_add(app.display.comp_layouts.bytes_per_line) {
-                if new_y < app.data.contents.len() {
-                    result.0 = new_y;
-                    return Some(result);
-                }
+            if let Some(new_y) = result.0.checked_add(app.display.comp_layouts.bytes_per_line)
+                && new_y < app.data.contents.len()
+            {
+                result.0 = new_y;
+                return Some(result);
             }
             return Some(result);
         }
