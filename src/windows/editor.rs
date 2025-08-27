@@ -75,12 +75,12 @@ impl KeyHandler for Editor {
     fn down(&mut self, app: &mut Data, display: &mut ScreenHandler, labels: &mut LabelHandler) {
         app.last_drag = None;
         app.drag_nibble = None;
-        if let Some(new_offset) = app.offset.checked_add(display.comp_layouts.bytes_per_line) {
-            if new_offset < app.contents.len() {
-                app.offset = new_offset;
-                labels.update_all(&app.contents[app.offset..]);
-                adjust_offset(app, display, labels);
-            }
+        if let Some(new_offset) = app.offset.checked_add(display.comp_layouts.bytes_per_line)
+            && new_offset < app.contents.len()
+        {
+            app.offset = new_offset;
+            labels.update_all(&app.contents[app.offset..]);
+            adjust_offset(app, display, labels);
         }
     }
     fn home(&mut self, app: &mut Data, display: &mut ScreenHandler, labels: &mut LabelHandler) {

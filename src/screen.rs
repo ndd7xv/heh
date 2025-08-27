@@ -178,7 +178,7 @@ impl Handler {
         app_info: &mut Data,
         bytes_per_line: usize,
         lines_per_screen: usize,
-    ) -> (Text, Text, Text) {
+    ) -> (Text<'_>, Text<'_>, Text<'_>) {
         let content_lines = app_info.contents.len() / bytes_per_line + 1;
         let start_row = app_info.start_address / bytes_per_line;
 
@@ -333,7 +333,7 @@ impl Handler {
 /// NOTE: In UTF-8, a character takes up to 4 bytes and thus the encoding can break at the ends of a
 /// chunk. Increasing the chunk size by 3 bytes at both ends before decoding and cropping them of
 /// afterwards solves the issue for the visible parts.
-fn generate_hex(app_info: &Data, bytes_per_line: usize, lines_per_screen: usize) -> Vec<Line> {
+fn generate_hex(app_info: &Data, bytes_per_line: usize, lines_per_screen: usize) -> Vec<Line<'_>> {
     let initial_offset = app_info.start_address.min(3);
     OverlappingChunks::new(
         &app_info.contents[(app_info.start_address - initial_offset)..],
@@ -422,7 +422,11 @@ fn generate_hex(app_info: &Data, bytes_per_line: usize, lines_per_screen: usize)
 /// NOTE: In UTF-8, a character takes up to 4 bytes and thus the encoding can break at the ends of a
 /// chunk. Increasing the chunk size by 3 bytes at both ends before decoding and cropping them of
 /// afterwards solves the issue for the visible parts.
-fn generate_decoded(app_info: &Data, bytes_per_line: usize, lines_per_screen: usize) -> Vec<Line> {
+fn generate_decoded(
+    app_info: &Data,
+    bytes_per_line: usize,
+    lines_per_screen: usize,
+) -> Vec<Line<'_>> {
     let initial_offset = app_info.start_address.min(3);
     OverlappingChunks::new(
         &app_info.contents[(app_info.start_address - initial_offset)..],

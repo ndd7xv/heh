@@ -27,13 +27,13 @@ impl KeyHandler for UnsavedChanges {
             self.should_quit = false;
         }
     }
-    fn get_user_input(&self) -> PopupOutput {
+    fn get_user_input(&self) -> PopupOutput<'_> {
         PopupOutput::Boolean(self.should_quit)
     }
     fn dimensions(&self) -> Option<(u16, u16)> {
         Some((50, 5))
     }
-    fn widget(&self) -> Paragraph {
+    fn widget(&self) -> Paragraph<'_> {
         let message = vec![
             Line::from(Span::styled(
                 "Are you sure you want to quit?",
