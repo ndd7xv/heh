@@ -7,6 +7,12 @@ and this project _somewhat_ adheres to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [0.6.2] - 2025-12-11
+
+- Add demo example and update documentation
+- Fix compiler warnings & Clippy warnings
+- Bump ratatui from 0.28.1 to 0.29.0
+
 ## [0.6.1] - 2024-08-12
 
 - Bump ratatui from 0.27.0 to 0.28.0
