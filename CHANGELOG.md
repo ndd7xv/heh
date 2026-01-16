@@ -7,6 +7,14 @@ and this project _somewhat_ adheres to [Semantic Versioning](https://semver.org/
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-01-14
+
+- Bump ratatui from 0.29.0 to 0.30.0
+- Bump clap from 4.5.40 to 4.5.54
+- Bump actions/checkout from 4 to 6
+- Bump memmap2 from 0.9.7 to 0.9.9
+- Bump arboard from 3.6.0 to 3.6.1
+
 ## [0.6.2] - 2025-12-11
 
 - Add demo example and update documentation
