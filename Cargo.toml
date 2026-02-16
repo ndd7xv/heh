@@ -14,7 +14,7 @@ categories = ["command-line-utilities", "text-editors"]
 ratatui = "0.30.0"
 clap = { version = "4.5.57", features = ["derive"] }
 arboard = { version = "3.6.1", default-features = false }
-memmap2 = "0.9.9"
+memmap2 = "0.9.10"
 crossbeam = "0.8.4"
 hex = "0.4.3"
 
